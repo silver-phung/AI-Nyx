@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, CalendarClock, EyeOff, Files, Search, Smartphone } from 'lucide-react'
+import { BookOpen, Building2, CalendarClock, EyeOff, Files, Search, Smartphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
@@ -46,6 +46,12 @@ export function shouldShowAgentDashboardButton(
   return settings?.experimentalAgentDashboardPopout === true
 }
 
+export function shouldShowOffice3DButton(
+  settings: Partial<Pick<GlobalSettings, 'enableOffice3D'>> | null | undefined
+): boolean {
+  return settings?.enableOffice3D === true
+}
+
 const AgentDashboardSidebarEntry = lazyWithRetry(() => import('./AgentDashboardSidebarEntry'))
 
 const SidebarNav = React.memo(function SidebarNav() {
@@ -56,6 +62,7 @@ const SidebarNav = React.memo(function SidebarNav() {
   const openMobilePage = useAppStore((s) => s.openMobilePage)
   const openArtifactsPage = useAppStore((s) => s.openArtifactsPage)
   const openSkillsPage = useAppStore((s) => s.openSkillsPage)
+  const openOffice3DPage = useAppStore((s) => s.openOffice3DPage)
   const openModal = useAppStore((s) => s.openModal)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activeView = useAppStore((s) => s.activeView)
@@ -64,10 +71,12 @@ const SidebarNav = React.memo(function SidebarNav() {
   const showMobileButton = useAppStore((s) => shouldShowMobileButton(s.settings))
   const showArtifactsButton = useAppStore((s) => shouldShowArtifactsButton(s.settings))
   const showSkillsButton = useAppStore((s) => shouldShowSkillsButton(s.settings))
+  const showOffice3DButton = useAppStore((s) => shouldShowOffice3DButton(s.settings))
   const automationsActive = activeView === 'automations'
   const mobileActive = activeView === 'mobile'
   const artifactsActive = activeView === 'artifacts'
   const skillsActive = activeView === 'skills'
+  const office3dActive = activeView === 'office3d'
   const mobileOnboardingBadge = useMobileSidebarOnboardingBadge(showMobileButton)
   const hideAutomationsButton = React.useCallback(() => {
     void updateSettings({ showAutomationsButton: false })
@@ -282,6 +291,30 @@ const SidebarNav = React.memo(function SidebarNav() {
           </ContextMenuTrigger>
           <HideSidebarMenu onHide={hideMobileButton} />
         </ContextMenu>
+      ) : null}
+      {showOffice3DButton ? (
+        <button
+          type="button"
+          onClick={openOffice3DPage}
+          aria-current={office3dActive ? 'page' : undefined}
+          className={cn(
+            'group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors',
+            office3dActive
+              ? 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
+              : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
+          )}
+        >
+          <Building2
+            className={cn(
+              'size-4 shrink-0',
+              !office3dActive && 'text-worktree-sidebar-foreground/30'
+            )}
+            strokeWidth={office3dActive ? 2.25 : 1.75}
+          />
+          <span className="min-w-0 flex-1 truncate">
+            {translate('auto.components.sidebar.SidebarNav.office3d', 'Office 3D')}
+          </span>
+        </button>
       ) : null}
     </div>
   )

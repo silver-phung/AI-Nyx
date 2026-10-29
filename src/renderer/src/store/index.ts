@@ -7,6 +7,7 @@ import { createWorktreeSlice } from './slices/worktrees'
 import { createTerminalSlice } from './slices/terminals'
 import { createTabsSlice } from './slices/tabs'
 import { createUISlice } from './slices/ui'
+import { sanitizeDisabledOfficeViews } from './slices/ui/ui-slice-hydration-sanitizers'
 import { createSettingsSlice } from './slices/settings'
 import { createKeybindingsSlice } from './slices/keybindings'
 import { createGitHubSlice } from './slices/github'
@@ -150,6 +151,14 @@ export const useAppStore = create<AppState>()(
 )
 
 registerHttpLinkStoreAccessor(() => useAppStore.getState(), useAppStore.subscribe)
+useAppStore.subscribe((state, previousState) => {
+  if (previousState.settings?.enableOffice3D === true && state.settings?.enableOffice3D !== true) {
+    const updates = sanitizeDisabledOfficeViews(state)
+    if (Object.keys(updates).length > 0) {
+      useAppStore.setState(updates)
+    }
+  }
+})
 registerHttpLinkGroupActionAvailability((request) =>
   canOfferHttpLinkGroupAction(useAppStore.getState(), request)
 )

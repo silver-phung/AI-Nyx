@@ -52,8 +52,10 @@ export function ExperimentalPane({
   const showNewWorktreeCardStyle = matchesSettingsSearch(searchQuery, [
     getExperimentalSearchEntry().newWorktreeCardStyle
   ])
+  const showOffice3D = matchesSettingsSearch(searchQuery, [getExperimentalSearchEntry().office3d])
   const agentHibernationEnabled = settings.experimentalAgentHibernation === true
   const newWorktreeCardStyleEnabled = settings.experimentalNewWorktreeCardStyle === true
+  const office3dEnabled = settings.enableOffice3D === true
   // Use the planner’s clamped millisecond value/default while editing minutes.
   const agentHibernationIdleMinutes = Math.round(
     getEffectiveAgentHibernationIdleMs(settings.agentHibernationIdleMs) / MS_PER_MINUTE
@@ -269,6 +271,45 @@ export function ExperimentalPane({
 
       {wslHostsAvailable() ? (
         <WslHostsExperimentalSetting settings={settings} updateSettings={updateSettings} />
+      ) : null}
+
+      {showOffice3D ? (
+        <SearchableSetting
+          title={translate('auto.components.settings.ExperimentalPane.office3d.title', 'Office 3D')}
+          description={translate(
+            'auto.components.settings.ExperimentalPane.office3d.description',
+            'Enable the experimental Office 3D workspace visualization view.'
+          )}
+          keywords={['office', '3d', 'workspace', 'virtual', 'room', 'experimental']}
+          className="space-y-3 py-2"
+          id="experimental-office-3d"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 shrink space-y-0.5">
+              <Label>
+                {translate('auto.components.settings.ExperimentalPane.office3d.title', 'Office 3D')}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {translate(
+                  'auto.components.settings.ExperimentalPane.office3d.copy',
+                  'Displays the 3D office view in the top-level navigation, showing workspaces and active agents.'
+                )}
+              </p>
+            </div>
+            <SettingsSwitch
+              checked={office3dEnabled}
+              ariaLabel={translate(
+                'auto.components.settings.ExperimentalPane.office3d.toggleLabel',
+                'Toggle Office 3D'
+              )}
+              onChange={() =>
+                updateSettings({
+                  enableOffice3D: !office3dEnabled
+                })
+              }
+            />
+          </div>
+        </SearchableSetting>
       ) : null}
 
       {hiddenExperimentalUnlocked ? <HiddenExperimentalGroup /> : null}

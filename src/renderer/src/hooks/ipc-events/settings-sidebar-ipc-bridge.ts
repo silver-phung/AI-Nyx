@@ -5,6 +5,7 @@ import { subscribeToUnpairedDeviceAuthNotification } from '../unpaired-device-au
 import { translate } from '@/i18n/i18n'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store'
+import { sanitizeDisabledOfficeViews } from '../../store/slices/ui/ui-slice-hydration-sanitizers'
 
 function getShortcutPlatform(): NodeJS.Platform {
   if (navigator.userAgent.includes('Mac')) {
@@ -103,15 +104,19 @@ export function registerSettingsAndSidebarIpcBridge(unsubs: (() => void)[]): voi
       const settingsUpdates = store.settings.activeRuntimeEnvironmentId
         ? activeOwnerUpdates
         : updates
+      const nextSettings = {
+        ...store.settings,
+        ...settingsUpdates,
+        notifications: {
+          ...store.settings.notifications,
+          ...updates.notifications
+        }
+      }
+      const officeDisabled =
+        store.settings.enableOffice3D === true && nextSettings.enableOffice3D !== true
+      const officeUpdates = officeDisabled ? sanitizeDisabledOfficeViews(store) : {}
       useAppStore.setState({
-        settings: {
-          ...store.settings,
-          ...settingsUpdates,
-          notifications: {
-            ...store.settings.notifications,
-            ...updates.notifications
-          }
-        },
+        settings: nextSettings,
         ...(worktreeVisibilityDefaults
           ? {
               worktreeVisibilityDefaultsByHost: {
@@ -119,7 +124,8 @@ export function registerSettingsAndSidebarIpcBridge(unsubs: (() => void)[]): voi
                 local: worktreeVisibilityDefaults
               }
             }
-          : {})
+          : {}),
+        ...officeUpdates
       })
       if ('worktreeVisibilityDefaults' in updates) {
         void store.fetchAllWorktrees({ visibilityOwnerHostId: 'local' })

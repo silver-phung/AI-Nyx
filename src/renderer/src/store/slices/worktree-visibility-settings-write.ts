@@ -6,6 +6,7 @@ import {
 } from '../../../../shared/execution-host'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { AppState } from '../types'
+import { sanitizeDisabledOfficeViews } from './ui/ui-slice-hydration-sanitizers'
 
 export async function persistVisibilityAwareSettings(args: {
   normalizedUpdates: Partial<GlobalSettings>
@@ -110,35 +111,42 @@ export async function persistVisibilityAwareSettings(args: {
   if (!shouldPublish()) {
     return
   }
-  set((state) => ({
-    settings: (() => {
-      const persisted = (nextSettings as GlobalSettings | undefined) ?? state.settings
-      if (!persisted || target.kind !== 'environment') {
-        return persisted
-      }
-      const defaults =
-        state.worktreeVisibilityDefaultsByHost[toRuntimeExecutionHostId(target.environmentId)] ??
-        currentSettings?.worktreeVisibilityDefaults
-      if (
-        target.environmentId ===
-          (state.worktreeVisibilityDefaultsSupportedRuntimeEnvironmentId ??
-            supportedRuntimeEnvironmentId) &&
-        defaults
-      ) {
-        return { ...persisted, worktreeVisibilityDefaults: defaults }
-      }
-      const { worktreeVisibilityDefaults: _unsupported, ...settingsWithoutDefaults } = persisted
-      return settingsWithoutDefaults as GlobalSettings
-    })(),
-    ...('worktreeVisibilityDefaults' in normalizedUpdates
-      ? {
-          worktreeVisibilityDefaultsByHost: {
-            ...state.worktreeVisibilityDefaultsByHost,
-            [LOCAL_EXECUTION_HOST_ID]: (nextSettings as GlobalSettings | undefined)
-              ?.worktreeVisibilityDefaults ??
-              normalizedUpdates.worktreeVisibilityDefaults ?? { external: 'hide' }
-          }
+  set((state) => {
+    const persisted = (nextSettings as GlobalSettings | undefined) ?? state.settings
+    const officeDisabled =
+      normalizedUpdates.enableOffice3D === false ||
+      (currentSettings?.enableOffice3D === true && persisted?.enableOffice3D !== true)
+    const officeUpdates = officeDisabled ? sanitizeDisabledOfficeViews(state) : {}
+    return {
+      settings: (() => {
+        if (!persisted || target.kind !== 'environment') {
+          return persisted
         }
-      : {})
-  }))
+        const defaults =
+          state.worktreeVisibilityDefaultsByHost[toRuntimeExecutionHostId(target.environmentId)] ??
+          currentSettings?.worktreeVisibilityDefaults
+        if (
+          target.environmentId ===
+            (state.worktreeVisibilityDefaultsSupportedRuntimeEnvironmentId ??
+              supportedRuntimeEnvironmentId) &&
+          defaults
+        ) {
+          return { ...persisted, worktreeVisibilityDefaults: defaults }
+        }
+        const { worktreeVisibilityDefaults: _unsupported, ...settingsWithoutDefaults } = persisted
+        return settingsWithoutDefaults as GlobalSettings
+      })(),
+      ...('worktreeVisibilityDefaults' in normalizedUpdates
+        ? {
+            worktreeVisibilityDefaultsByHost: {
+              ...state.worktreeVisibilityDefaultsByHost,
+              [LOCAL_EXECUTION_HOST_ID]: (nextSettings as GlobalSettings | undefined)
+                ?.worktreeVisibilityDefaults ??
+                normalizedUpdates.worktreeVisibilityDefaults ?? { external: 'hide' }
+            }
+          }
+        : {}),
+      ...officeUpdates
+    }
+  })
 }

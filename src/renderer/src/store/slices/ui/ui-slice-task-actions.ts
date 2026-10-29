@@ -8,7 +8,7 @@ import {
 } from '../../../../../shared/task-providers'
 import { PER_REPO_FETCH_LIMIT } from '../../../../../shared/work-items'
 import { isGitRepoKind } from '../../../../../shared/repo-kind'
-import { presetToQuery } from './ui-slice-hydration-sanitizers'
+import { presetToQuery, resolveSafePreviousView } from './ui-slice-hydration-sanitizers'
 
 const LINEAR_TASK_PREFETCH_LIMIT = 36
 
@@ -25,7 +25,12 @@ export function createUiTaskActions(set: UISliceSet, get: UISliceGet): Partial<U
     pendingSkillsSharedView: false,
     previousViewBeforeMobile: 'terminal',
     previousViewBeforeArtifacts: 'terminal',
-    setActiveView: (view) => set({ activeView: view }),
+    previousViewBeforeOffice3D: 'terminal',
+    setActiveView: (view) => {
+      const nextView =
+        view === 'office3d' && get().settings?.enableOffice3D !== true ? 'terminal' : view
+      set({ activeView: nextView })
+    },
     taskPageData: {},
     taskResumeState: undefined,
     taskListPosition: null,
@@ -204,8 +209,16 @@ export function createUiTaskActions(set: UISliceSet, get: UISliceGet): Partial<U
             nextHistoryIndex = 0
           }
         }
+        const nextActiveView = resolveSafePreviousView(
+          state.previousViewBeforeTasks,
+          state.settings
+        )
         return {
-          activeView: state.previousViewBeforeTasks,
+          activeView: nextActiveView,
+          previousViewBeforeTasks:
+            nextActiveView === 'terminal' && state.previousViewBeforeTasks === 'office3d'
+              ? 'terminal'
+              : state.previousViewBeforeTasks,
           taskPageData: {},
           githubTaskDrawerWorkItem: null,
           worktreeNavHistoryIndex: nextHistoryIndex

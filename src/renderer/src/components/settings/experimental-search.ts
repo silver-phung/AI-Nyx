@@ -182,6 +182,39 @@ export const getExperimentalPaneSearchEntries = createLocalizedCatalog(
     },
     getNewWorktreeCardStyleSearchEntry(),
     getEphemeralVmsSearchEntry(),
+    {
+      title: translate('auto.components.settings.experimental.search.office3d.title', 'Office 3D'),
+      description: translate(
+        'auto.components.settings.experimental.search.office3d.description',
+        'Enable the experimental Office 3D workspace view.'
+      ),
+      keywords: [
+        ...translateSearchKeyword(
+          'auto.components.settings.experimental.search.office3d.kw.office',
+          'office'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.experimental.search.office3d.kw.3d',
+          '3d'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.experimental.search.office3d.kw.workspace',
+          'workspace'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.experimental.search.office3d.kw.virtual',
+          'virtual'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.experimental.search.office3d.kw.room',
+          'room'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.experimental.search.office3d.kw.experimental',
+          'experimental'
+        )
+      ]
+    },
     // Index WSL toggles only on Windows desktops that expose them.
     ...(typeof window !== 'undefined' && window.api?.runtimeEnvironments?.wslHosts
       ? [getWslHostsExperimentalSearchEntry()]
@@ -227,6 +260,9 @@ export function getExperimentalSearchEntry() {
     ),
     ephemeralVms: findEntry(
       translate('auto.components.settings.ephemeralVms.search.cloudVmTitle', 'Cloud VM')
+    ),
+    office3d: findEntry(
+      translate('auto.components.settings.experimental.search.office3d.title', 'Office 3D')
     )
   } as const
 }

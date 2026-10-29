@@ -1,5 +1,6 @@
 import type { UISlice, UISliceGet, UISliceSet } from './ui-slice-contract'
 import { isSettingsNavigationTarget } from '../../../lib/settings-navigation-types'
+import { resolveSafePreviousView } from './ui-slice-hydration-sanitizers'
 
 export function createUiSettingsActions(set: UISliceSet, get: UISliceGet): Partial<UISlice> {
   return {
@@ -15,7 +16,17 @@ export function createUiSettingsActions(set: UISliceSet, get: UISliceGet): Parti
     },
     closeSettingsPage: () =>
       set((state) => {
-        return { activeView: state.previousViewBeforeSettings }
+        const nextActiveView = resolveSafePreviousView(
+          state.previousViewBeforeSettings,
+          state.settings
+        )
+        return {
+          activeView: nextActiveView,
+          previousViewBeforeSettings:
+            nextActiveView === 'terminal' && state.previousViewBeforeSettings === 'office3d'
+              ? 'terminal'
+              : state.previousViewBeforeSettings
+        }
       }),
     settingsNavigationTarget: null,
     openSettingsTarget: (target) => {

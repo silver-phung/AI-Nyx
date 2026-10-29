@@ -68,7 +68,11 @@ export function updatePersistedUI(
   }
   const sanitizedUpdates = stripMainOwnedTelemetryMarkerFromUI(updates)
   const { activeView, ...durableUpdates } = sanitizedUpdates
-  const activeViewChanged = operations.setActiveView(activeView)
+  const resolvedActiveView =
+    activeView === 'office3d' && operations.state.settings?.enableOffice3D !== true
+      ? 'terminal'
+      : activeView
+  const activeViewChanged = operations.setActiveView(resolvedActiveView)
   if (Object.keys(durableUpdates).length === 0) {
     if (activeViewChanged) {
       operations.notifyUIChanged()

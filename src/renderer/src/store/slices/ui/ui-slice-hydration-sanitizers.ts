@@ -2,6 +2,7 @@ import { normalizeExplorerDisplayRootByWorktree } from '../../../../../shared/fi
 import type { AppState } from '../../types'
 import type { PersistedTrustedOrcaHooks } from '../../../../../shared/orca-yaml-hook-types'
 import type { PersistedUIState } from '../../../../../shared/persisted-ui-state-types'
+import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import type {
   TaskViewPresetId,
   TopLevelView,
@@ -166,12 +167,74 @@ export function sanitizeWorkspaceCleanupDismissals(
   return out
 }
 
-export function sanitizeHydratedActiveView(value: PersistedUIState['activeView']): TopLevelView {
+export function sanitizeHydratedActiveView(
+  value: unknown,
+  settings?: Pick<GlobalSettings, 'enableOffice3D'> | null
+): TopLevelView {
   // Why: older data (pre-activeView) or a view a different build doesn't have falls back to terminal rather than rendering nothing.
   if (!isTopLevelView(value)) {
     return 'terminal'
   }
+  if (value === 'office3d' && settings?.enableOffice3D !== true) {
+    return 'terminal'
+  }
   return value
+}
+
+export function resolveSafePreviousView(
+  previousView: TopLevelView,
+  settings?: Pick<GlobalSettings, 'enableOffice3D'> | null
+): TopLevelView {
+  if (previousView === 'office3d' && settings?.enableOffice3D !== true) {
+    return 'terminal'
+  }
+  return previousView
+}
+
+export function sanitizeDisabledOfficeViews(state: {
+  activeView?: TopLevelView
+  previousViewBeforeSettings?: TopLevelView
+  previousViewBeforeTasks?: TopLevelView
+  previousViewBeforeActivity?: TopLevelView
+  previousViewBeforeAutomations?: TopLevelView
+  previousViewBeforeSpace?: TopLevelView
+  previousViewBeforeSkills?: TopLevelView
+  previousViewBeforeMobile?: TopLevelView
+  previousViewBeforeArtifacts?: TopLevelView
+  previousViewBeforeOffice3D?: TopLevelView
+}): Partial<AppState> {
+  const updates: Partial<AppState> = {}
+  if (state.activeView === 'office3d') {
+    updates.activeView = 'terminal'
+  }
+  if (state.previousViewBeforeSettings === 'office3d') {
+    updates.previousViewBeforeSettings = 'terminal'
+  }
+  if (state.previousViewBeforeTasks === 'office3d') {
+    updates.previousViewBeforeTasks = 'terminal'
+  }
+  if (state.previousViewBeforeActivity === 'office3d') {
+    updates.previousViewBeforeActivity = 'terminal'
+  }
+  if (state.previousViewBeforeAutomations === 'office3d') {
+    updates.previousViewBeforeAutomations = 'terminal'
+  }
+  if (state.previousViewBeforeSpace === 'office3d') {
+    updates.previousViewBeforeSpace = 'terminal'
+  }
+  if (state.previousViewBeforeSkills === 'office3d') {
+    updates.previousViewBeforeSkills = 'terminal'
+  }
+  if (state.previousViewBeforeMobile === 'office3d') {
+    updates.previousViewBeforeMobile = 'terminal'
+  }
+  if (state.previousViewBeforeArtifacts === 'office3d') {
+    updates.previousViewBeforeArtifacts = 'terminal'
+  }
+  if (state.previousViewBeforeOffice3D === 'office3d') {
+    updates.previousViewBeforeOffice3D = 'terminal'
+  }
+  return updates
 }
 
 export function hydratedUIPartialMatchesState(

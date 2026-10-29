@@ -1,5 +1,6 @@
 import type { UISlice, UISliceGet, UISliceSet } from './ui-slice-contract'
 import { rewindHistoryIndexPastView } from '../worktree-nav-history'
+import { resolveSafePreviousView } from './ui-slice-hydration-sanitizers'
 
 export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<UISlice> {
   return {
@@ -12,7 +13,7 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
     },
     closeActivityPage: () =>
       set((state) => ({
-        activeView: state.previousViewBeforeActivity
+        activeView: resolveSafePreviousView(state.previousViewBeforeActivity, state.settings)
       })),
     selectedAutomationId: null,
     setSelectedAutomationId: (id) => set({ selectedAutomationId: id }),
@@ -31,7 +32,7 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
     },
     closeAutomationsPage: () =>
       set((state) => ({
-        activeView: state.previousViewBeforeAutomations,
+        activeView: resolveSafePreviousView(state.previousViewBeforeAutomations, state.settings),
         worktreeNavHistoryIndex: rewindHistoryIndexPastView(state, 'automations')
       })),
     openSpacePage: () => {
@@ -48,7 +49,7 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
     },
     closeSpacePage: () =>
       set((state) => ({
-        activeView: state.previousViewBeforeSpace
+        activeView: resolveSafePreviousView(state.previousViewBeforeSpace, state.settings)
       })),
     openSkillsPage: () => {
       get().recordViewVisit('skills')
@@ -60,7 +61,7 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
     },
     closeSkillsPage: () =>
       set((state) => ({
-        activeView: state.previousViewBeforeSkills,
+        activeView: resolveSafePreviousView(state.previousViewBeforeSkills, state.settings),
         worktreeNavHistoryIndex: rewindHistoryIndexPastView(state, 'skills')
       })),
     openSkillShare: (shareId) => {
@@ -93,7 +94,7 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
     },
     closeArtifactsPage: () =>
       set((state) => ({
-        activeView: state.previousViewBeforeArtifacts,
+        activeView: resolveSafePreviousView(state.previousViewBeforeArtifacts, state.settings),
         worktreeNavHistoryIndex: rewindHistoryIndexPastView(state, 'artifacts')
       })),
     openMobilePage: () =>
@@ -104,7 +105,21 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       })),
     closeMobilePage: () =>
       set((state) => ({
-        activeView: state.previousViewBeforeMobile
+        activeView: resolveSafePreviousView(state.previousViewBeforeMobile, state.settings)
+      })),
+    openOffice3DPage: () => {
+      if (get().settings?.enableOffice3D !== true) {
+        return
+      }
+      set((state) => ({
+        activeView: 'office3d',
+        previousViewBeforeOffice3D:
+          state.activeView === 'office3d' ? state.previousViewBeforeOffice3D : state.activeView
+      }))
+    },
+    closeOffice3DPage: () =>
+      set((state) => ({
+        activeView: resolveSafePreviousView(state.previousViewBeforeOffice3D, state.settings)
       })),
     setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
     clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null })

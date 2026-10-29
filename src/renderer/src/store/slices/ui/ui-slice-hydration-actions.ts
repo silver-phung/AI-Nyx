@@ -258,7 +258,9 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
               : s.workspaceCleanupBrowse,
           // Why: restore only on startup; on 'sync' broadcasts it would clobber the window's current per-window view.
           activeView:
-            source === 'startup' ? sanitizeHydratedActiveView(ui.activeView) : s.activeView,
+            source === 'startup'
+              ? sanitizeHydratedActiveView(ui.activeView, s.settings)
+              : s.activeView,
           persistedUIReady: true
         }
         // Capture authoritative baseline before overlaying dirty/in-flight local fields or their diff vanishes (STA-5781). Nonnumeric width fallback may differ from main until the next drag.

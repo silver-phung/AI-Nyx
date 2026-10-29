@@ -6142,7 +6142,8 @@
           "fee535205b": "Tasks",
           "d599269755": "Hide from sidebar",
           "artifacts": "Artifacts",
-          "skills": "Skills"
+          "skills": "Skills",
+          "office3d": "Office 3D"
         },
         "SidebarRepositoryFilterSection": {
           "d3a9c4cea1": "Clear",
@@ -8027,6 +8028,12 @@
             "modeAriaLabel": "Agent Dashboard open mode",
             "modeInWindow": "In-window",
             "modePopout": "Pop-out"
+          },
+          "office3d": {
+            "title": "Office 3D",
+            "description": "Enable the experimental Office 3D workspace visualization view.",
+            "copy": "Displays the 3D office view in the top-level navigation, showing workspaces and active agents.",
+            "toggleLabel": "Toggle Office 3D"
           }
         },
         "FloatingWorkspacePane": {
@@ -10557,6 +10564,18 @@
               "board": "board",
               "inWindow": "in-window",
               "worktrees": "worktrees"
+            },
+            "office3d": {
+              "title": "Office 3D",
+              "description": "Enable the experimental Office 3D workspace view.",
+              "kw": {
+                "office": "office",
+                "3d": "3d",
+                "workspace": "workspace",
+                "virtual": "virtual",
+                "room": "room",
+                "experimental": "experimental"
+              }
             }
           }
         },
@@ -19155,6 +19174,36 @@
         "viewing": "Currently viewing",
         "viewingChild": "Viewing subagent {{name}}",
         "returnHint": "Click the parent row to return. Esc stops this subagent. Enter sends your draft to this subagent."
+      },
+      "office3d": {
+        "returnToClassic": "Return to Classic View",
+        "title": "Office 3D",
+        "badgeFoundation": "M1 Foundation",
+        "badgeExperimental": "Experimental",
+        "description": "DOM-only functional foundation. Terminal workbench and background sessions remain mounted.",
+        "workspaces": "Workspaces",
+        "activeId": "Active ID:",
+        "none": "None",
+        "fleetAgents": "Fleet Agent Panes",
+        "activeAgents": "Fleet Agent Panes",
+        "liveFleetProcesses": "Live fleet processes",
+        "working": "Working",
+        "executingTurnsOrTasks": "Executing turns or tasks",
+        "attentionRequired": "Attention Required",
+        "waitingOnApprovalInput": "Waiting on approval/input",
+        "idleOrDone": "Idle / Done",
+        "readyForAssignment": "Ready for assignment",
+        "retentionVerificationTitle": "M1 View Architecture & Retention Foundation",
+        "retentionVerificationDesc": "This top-level view establishes routing, feature-flag fallback, navigation history, and terminal workbench retention.",
+        "detailRetention": "Terminal Workbench mounted in DOM (hidden & inert) to keep running PTY and agent sessions alive.",
+        "detailNav": "Sidebar navigation and project hierarchy fully preserved.",
+        "detailHistory": "Modal-view history pattern intact; feature flag OFF safely falls back to Classic view.",
+        "detailM3": "Interactive 3D scene (Three.js/Canvas) will be integrated in subsequent milestones (M3+).",
+        "fleetTitle": "Live Agent Fleet",
+        "noAgents": "No active agents running. Launch an agent in Classic view to see its status here.",
+        "agentSession": "Agent Session",
+        "workspaceLabel": "Workspace:",
+        "typeLabel": "Type:"
       }
     },
     "i18n": {

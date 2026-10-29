@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   openActivityPage: vi.fn(),
   openMobilePage: vi.fn(),
   openArtifactsPage: vi.fn(),
+  openOffice3DPage: vi.fn(),
   openModal: vi.fn(),
   updateSettings: vi.fn(),
   refreshPreflightStatus: vi.fn(),
@@ -131,6 +132,7 @@ function setSidebarState({
     openActivityPage: mocks.openActivityPage,
     openMobilePage: mocks.openMobilePage,
     openArtifactsPage: mocks.openArtifactsPage,
+    openOffice3DPage: mocks.openOffice3DPage,
     openModal: mocks.openModal,
     updateSettings: mocks.updateSettings,
     preflightStatus: { glab: { installed: false } },
@@ -477,5 +479,22 @@ describe('SidebarNav', () => {
     await clickButton(getHideButton(tasksMenu as HTMLElement))
 
     expect(mocks.updateSettings).toHaveBeenCalledWith({ showTasksButton: false })
+  })
+
+  describe('Office 3D button', () => {
+    it('is hidden when enableOffice3D is false or unset', async () => {
+      setSidebarState({ settings: { ...getDefaultSettings('/tmp'), enableOffice3D: false } })
+      const container = await renderSidebarNav()
+      expect(queryButtonByText(container, 'Office 3D')).toBeNull()
+    })
+
+    it('renders and opens Office 3D page when enableOffice3D is true', async () => {
+      setSidebarState({ settings: { ...getDefaultSettings('/tmp'), enableOffice3D: true } })
+      const container = await renderSidebarNav()
+      const officeButton = getButtonByText(container, 'Office 3D')
+      expect(officeButton).not.toBeNull()
+      await clickButton(officeButton)
+      expect(mocks.openOffice3DPage).toHaveBeenCalled()
+    })
   })
 })

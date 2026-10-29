@@ -5,13 +5,14 @@ import type { AppState } from '../types'
 import { createUISlice } from './ui'
 import { createWorktreeNavHistorySlice } from './worktree-nav-history'
 import { createSettingsSearchState } from './settings-search-state'
+import { sanitizeDisabledOfficeViews } from './ui/ui-slice-hydration-sanitizers'
 
 export function createUIStore(): StoreApi<AppState> {
   // Only the UI slice, repo/worktree ids, and right sidebar width fallback are
   // needed for these tests. The worktree-nav-history slice is also included
   // because page opens record view visits.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return createStore<any>()((...args: any[]) => ({
+  // oxlint-disable-next-line typescript/no-explicit-any, typescript/consistent-type-assertions -- SAFETY: a partial store; tests read only the slices it builds.
+  const store = createStore<any>()((...args: any[]) => ({
     repos: [],
     worktreesByRepo: {},
     rightSidebarOpen: false,
@@ -25,7 +26,22 @@ export function createUIStore(): StoreApi<AppState> {
     ...createSettingsSearchState(args[0]),
     ...createWorktreeNavHistorySlice(...(args as Parameters<typeof createWorktreeNavHistorySlice>)),
     ...createUISlice(...(args as Parameters<typeof createUISlice>))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: typed test harness store
   })) as unknown as StoreApi<AppState>
+
+  store.subscribe((state, previousState) => {
+    if (
+      previousState.settings?.enableOffice3D === true &&
+      state.settings?.enableOffice3D !== true
+    ) {
+      const updates = sanitizeDisabledOfficeViews(state)
+      if (Object.keys(updates).length > 0) {
+        store.setState(updates)
+      }
+    }
+  })
+
+  return store
 }
 
 export function makePersistedUI(overrides: Partial<PersistedUIState> = {}): PersistedUIState {
