@@ -41,12 +41,16 @@ function clamp(value: number, min: number, max: number): number {
 export function AgentTerminalPreview({
   ptyId,
   terminalInput = null,
+  readOnly = false,
+  disableAutoFocus = false,
   className,
   onRequestClose
 }: {
   ptyId: string
   /** Host-input facts relayed with the card; null routes bytes by client OS. */
   terminalInput?: DashboardCardTerminalInput | null
+  readOnly?: boolean
+  disableAutoFocus?: boolean
   className?: string
   onRequestClose?: () => void
 }): React.JSX.Element {
@@ -60,6 +64,8 @@ export function AgentTerminalPreview({
   const macOptionAsAltRef = useRef(macOptionAsAlt)
   const terminalInputRef = useRef(terminalInput)
   const onRequestCloseRef = useRef(onRequestClose)
+  const readOnlyRef = useRef(readOnly)
+  const disableAutoFocusRef = useRef(disableAutoFocus)
   const { terminalTheme: composedTheme, terminalMode } = useMemo(() => {
     if (!settings) {
       return { terminalTheme: null, terminalMode: 'dark' as const }
@@ -84,7 +90,9 @@ export function AgentTerminalPreview({
     macOptionAsAltRef.current = macOptionAsAlt
     terminalInputRef.current = terminalInput
     onRequestCloseRef.current = onRequestClose
-  }, [settings, macOptionAsAlt, terminalInput, onRequestClose])
+    readOnlyRef.current = readOnly
+    disableAutoFocusRef.current = disableAutoFocus
+  }, [settings, macOptionAsAlt, terminalInput, onRequestClose, readOnly, disableAutoFocus])
 
   // Font changes retain the replay-driven fit, grid claim and input-owner reset.
   useEffect(() => {
@@ -164,19 +172,27 @@ export function AgentTerminalPreview({
       if (!terminal) {
         standalone = openStandaloneTerminal({
           container,
-          options: buildPreviewTerminalOptions({
-            settings: settingsRef.current,
-            terminalInput: mountTerminalInput,
-            macOptionIsMeta: macOptionAsAltRef.current === 'true',
-            theme: terminalTheme,
-            themeMode: terminalMode,
-            cols: clamp(snap.cols ?? FALLBACK_COLS, 2, 500),
-            rows: clamp(snap.rows ?? FALLBACK_ROWS, 2, 200),
-            scrollback: PREVIEW_SCROLLBACK_BUFFER_ROWS
-          }),
+          options: {
+            ...buildPreviewTerminalOptions({
+              settings: settingsRef.current,
+              terminalInput: mountTerminalInput,
+              macOptionIsMeta: macOptionAsAltRef.current === 'true',
+              theme: terminalTheme,
+              themeMode: terminalMode,
+              cols: clamp(snap.cols ?? FALLBACK_COLS, 2, 500),
+              rows: clamp(snap.rows ?? FALLBACK_ROWS, 2, 200),
+              scrollback: PREVIEW_SCROLLBACK_BUFFER_ROWS
+            }),
+            disableStdin: readOnlyRef.current
+          },
           kittyKeyboardModes,
           sessionKey: ptyId,
-          sendInput: (data) => previewApi.input(ptyId, data),
+          sendInput: (data) => {
+            if (readOnlyRef.current) {
+              return false
+            }
+            return previewApi.input(ptyId, data)
+          },
           answersQueries: false,
           getSettings: () => settingsRef.current,
           getMacOptionAsAlt: () => macOptionAsAltRef.current,
@@ -224,7 +240,9 @@ export function AgentTerminalPreview({
       }
       boxFit.schedule()
       gridClaim.schedule()
-      terminal.focus()
+      if (!disableAutoFocusRef.current && !readOnlyRef.current) {
+        terminal.focus()
+      }
     }
 
     const releaseTerminal = (): void => {
@@ -306,19 +324,22 @@ export function AgentTerminalPreview({
     if (!terminal) {
       return
     }
-    Object.assign(
-      terminal.options,
-      buildPreviewAppearanceOptions(settings, macOptionAsAlt === 'true')
-    )
+    if (terminal.options) {
+      Object.assign(
+        terminal.options,
+        buildPreviewAppearanceOptions(settings, macOptionAsAlt === 'true'),
+        { disableStdin: readOnly }
+      )
+    }
     syncPreviewTerminalLigatures(terminal, settings)
-  }, [settings, macOptionAsAlt])
+  }, [settings, macOptionAsAlt, readOnly])
 
   return (
-    // Fix the box to the viewport so snapshot geometry cannot resize the dialog; fit/clip the true PTY frame at its cursor end.
+    // Fill container in resizable IDE panels or retain explicit caller dimensions; fit/clip true PTY frame at cursor end.
     <div
       data-agent-terminal-preview
       className={cn(
-        'relative h-[calc(100vh-140px)] w-full overflow-hidden bg-background p-1.5',
+        'relative h-full w-full min-h-0 flex-1 overflow-hidden bg-background p-1.5',
         className
       )}
       style={terminalTheme?.background ? { backgroundColor: terminalTheme.background } : undefined}

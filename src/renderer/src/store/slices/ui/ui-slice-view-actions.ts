@@ -119,7 +119,9 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
     },
     closeOffice3DPage: () =>
       set((state) => ({
-        activeView: resolveSafePreviousView(state.previousViewBeforeOffice3D, state.settings)
+        activeView: !state.previousViewBeforeOffice3D
+          ? 'terminal'
+          : resolveSafePreviousView(state.previousViewBeforeOffice3D, state.settings)
       })),
     setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
     clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null })

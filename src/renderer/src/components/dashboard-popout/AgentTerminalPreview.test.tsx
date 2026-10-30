@@ -14,7 +14,8 @@ const terminalHarness = vi.hoisted(() => ({
     dispose: ReturnType<typeof vi.fn>
     resize: ReturnType<typeof vi.fn>
     reset: ReturnType<typeof vi.fn>
-    paste: ReturnType<typeof vi.fn>
+    paste: ((data: string) => void) & ReturnType<typeof vi.fn>
+    focus: ReturnType<typeof vi.fn>
     input: ReturnType<typeof vi.fn>
     scrollToTop: ReturnType<typeof vi.fn>
     scrollToBottom: ReturnType<typeof vi.fn>
@@ -48,6 +49,7 @@ vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     cols = 80
     rows = 24
+    options: Record<string, unknown> = {}
     buffer = { active: { cursorY: 0 } }
     writeCallbacks: (() => void)[] = []
     onDataListener: ((data: string) => void) | null = null
@@ -811,5 +813,87 @@ describe('AgentTerminalPreview', () => {
     const view = render(<AgentTerminalPreview ptyId="pty-1" />)
 
     await waitFor(() => expect(view.getByText(/No live terminal/)).toBeInTheDocument())
+  })
+
+  describe('AgentTerminalPreview safety & lifecycle controls', () => {
+    it('blocks typed input when readOnly is true', async () => {
+      render(<AgentTerminalPreview ptyId="pty-1" readOnly={true} />)
+      await waitFor(() => expect(terminalHarness.instances).toHaveLength(1))
+      const terminal = terminalHarness.instances[0]!
+
+      act(() => {
+        terminalHarness.userInputListener?.()
+        terminal.onDataListener?.('echo dangerous')
+      })
+
+      expect(input).not.toHaveBeenCalled()
+    })
+
+    it('blocks paste input when readOnly is true', async () => {
+      render(<AgentTerminalPreview ptyId="pty-1" readOnly={true} />)
+      await waitFor(() => expect(terminalHarness.instances).toHaveLength(1))
+      const terminal = terminalHarness.instances[0]!
+
+      act(() => {
+        terminal.paste('rm -rf /')
+      })
+
+      expect(input).not.toHaveBeenCalled()
+    })
+
+    it('prevents terminal autofocus when disableAutoFocus is true', async () => {
+      render(<AgentTerminalPreview ptyId="pty-1" disableAutoFocus={true} readOnly={false} />)
+      await waitFor(() => expect(terminalHarness.instances).toHaveLength(1))
+      const terminal = terminalHarness.instances[0]!
+
+      expect(terminal.focus).not.toHaveBeenCalled()
+    })
+
+    it('preserves stream lifecycle without reconnecting when readOnly toggles', async () => {
+      const view = render(<AgentTerminalPreview ptyId="pty-1" readOnly={true} />)
+      await waitFor(() => expect(terminalHarness.instances).toHaveLength(1))
+      const terminal = terminalHarness.instances[0]!
+      expect(connect).toHaveBeenCalledTimes(1)
+
+      // Toggle readOnly from true to false
+      view.rerender(<AgentTerminalPreview ptyId="pty-1" readOnly={false} />)
+      expect(connect).toHaveBeenCalledTimes(1)
+      expect(terminalHarness.instances).toHaveLength(1)
+      expect(terminal.dispose).not.toHaveBeenCalled()
+
+      // When unlocked, typed input now flows to previewApi.input
+      act(() => {
+        terminalHarness.userInputListener?.()
+        terminal.onDataListener?.('ls\n')
+      })
+      expect(input).toHaveBeenCalledWith('pty-1', 'ls\n')
+
+      // Toggle back to readOnly=true
+      view.rerender(<AgentTerminalPreview ptyId="pty-1" readOnly={true} />)
+      expect(connect).toHaveBeenCalledTimes(1)
+      expect(terminal.dispose).not.toHaveBeenCalled()
+
+      input.mockClear()
+      act(() => {
+        terminalHarness.userInputListener?.()
+        terminal.onDataListener?.('whoami\n')
+      })
+      expect(input).not.toHaveBeenCalled()
+    })
+
+    it('renders flexible sizing classes by default and respects custom className', async () => {
+      const defaultView = render(<AgentTerminalPreview ptyId="pty-1" />)
+      const defaultRoot = defaultView.container.querySelector('[data-agent-terminal-preview]')
+      expect(defaultRoot).toHaveClass('h-full')
+      expect(defaultRoot).toHaveClass('w-full')
+      expect(defaultRoot).toHaveClass('min-h-0')
+      expect(defaultRoot).toHaveClass('flex-1')
+
+      const customView = render(
+        <AgentTerminalPreview ptyId="pty-1" className="h-[500px] custom-test-class" />
+      )
+      const customRoot = customView.container.querySelector('[data-agent-terminal-preview]')
+      expect(customRoot).toHaveClass('custom-test-class')
+    })
   })
 })

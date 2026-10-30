@@ -271,7 +271,9 @@ export const electronViteConfig: UserConfig = {
       alias: {
         ...markdownParserAliases,
         '@renderer': resolve('src/renderer/src'),
-        '@': resolve('src/renderer/src')
+        '@': resolve('src/renderer/src'),
+        react: resolve('node_modules/react'),
+        'react-dom': resolve('node_modules/react-dom')
       }
     },
     plugins: [
