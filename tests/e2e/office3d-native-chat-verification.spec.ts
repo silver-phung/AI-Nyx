@@ -185,6 +185,16 @@ test('Real Electron verification — Office 3D Native Chat routing, safety locks
   await expect(rightPanel.getByText(/Beta Headless Agent No PTY/i)).toBeVisible()
   await expect(rightPanel.getByText(/Gamma Remote SSH Agent/i)).toBeVisible()
 
+  // M5: real Orca status reaches the campus — blocked Agent B walks to the garden as a REAL event.
+  await terminalPanel.getByRole('button', { name: /^Logs/ }).click()
+  const realRestEvent = terminalPanel
+    .locator('div')
+    .filter({ hasText: /REAL/ })
+    .filter({ hasText: /rest:\s*needs input/ })
+  await expect(realRestEvent.first()).toBeVisible({ timeout: 15_000 })
+  await expect(terminalPanel.getByText('DEV PREVIEW', { exact: true })).toHaveCount(0)
+  await terminalPanel.getByRole('button', { name: /^Terminal$/ }).click()
+
   // 6. Select Agent A (Local, Single Pane, Verified PTY)
   const agentABtn = rightPanel.getByRole('button', { name: /Alpha Local Codex Agent/i })
   await agentABtn.click()

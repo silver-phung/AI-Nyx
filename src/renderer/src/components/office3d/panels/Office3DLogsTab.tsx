@@ -5,24 +5,35 @@ export type Office3DLogsTabProps = {
   campusEvents: readonly CampusActivityEvent[]
 }
 
+/** Orca never reports git/test/deploy outcomes, so `ended` must not read as passed or failed. */
+function statusLabel(event: CampusActivityEvent): string {
+  switch (event.status) {
+    case 'started':
+      return event.kind === 'rest' ? 'waiting' : 'in progress'
+    case 'ended':
+      return event.kind === 'rest' ? 'resumed' : 'ended · outcome unknown'
+    default:
+      return event.status
+  }
+}
+
 export function Office3DLogsTab({ campusEvents }: Office3DLogsTabProps): React.JSX.Element {
   return (
     <div className="flex flex-col h-full overflow-hidden p-3 font-mono text-xs">
       <div className="flex items-center justify-between pb-2 border-b border-border/40 text-muted-foreground text-[11px] shrink-0">
         <span>Campus Event Bus ({campusEvents.length} events logged)</span>
         <div className="flex items-center gap-1.5 text-[10px]">
-          <span className="size-1.5 rounded-full bg-amber-400/80" />
-          <span className="text-muted-foreground font-sans">Orca event source not connected</span>
+          <span className="size-1.5 rounded-full bg-emerald-400/80" />
+          <span className="text-muted-foreground font-sans">Live Orca agent status</span>
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-sleek py-2 space-y-1.5">
         {campusEvents.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground text-xs space-y-1.5">
-            <p className="font-medium text-foreground">Orca event source not connected</p>
+            <p className="font-medium text-foreground">No agent activity yet</p>
             <p className="text-[11px] text-muted-foreground/80 max-w-md mx-auto">
-              System events (Git pushes, test runs, and code reviews) are not forwarded to Office
-              3D. DEV PREVIEW events will be logged here when simulated campus actors trigger
-              activity.
+              Agents appear here when Orca reports them running git, test, deploy or review
+              commands, coordinating subagents, or waiting. Coding stays at the desk.
             </p>
           </div>
         ) : (
@@ -52,9 +63,10 @@ export function Office3DLogsTab({ campusEvents }: Office3DLogsTabProps): React.J
                       ? 'destructive'
                       : 'outline'
                 }
-                className="text-[9px] py-0 ml-auto capitalize"
+                className="text-[9px] py-0 ml-auto"
+                data-status={evt.status}
               >
-                {evt.status}
+                {statusLabel(evt)}
               </Badge>
             </div>
           ))

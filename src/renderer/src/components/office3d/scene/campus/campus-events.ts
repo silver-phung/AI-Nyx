@@ -16,11 +16,12 @@ export type CampusActivityKind =
   | 'meeting'
   | 'rest'
 
-export type CampusActivityStatus = 'started' | 'succeeded' | 'failed'
+/** `ended` closes an activity whose outcome Orca does not report; it never claims success or failure. */
+export type CampusActivityStatus = 'started' | 'succeeded' | 'failed' | 'ended'
 
 export type CampusEventSource = 'orca' | 'dev-preview'
 
-export interface CampusActivityEvent {
+export type CampusActivityEvent = {
   /** Unique per activity; `started` and the final status share the same id. */
   readonly activityId: string
   /** OfficeEmployee.employeeId for source 'orca'; free label for 'dev-preview'. */
@@ -35,34 +36,59 @@ export interface CampusActivityEvent {
 
 export type CampusEventListener = (event: CampusActivityEvent) => void
 
-export interface CampusEventBus {
+export type CampusEventBus = {
   emit(event: CampusActivityEvent): void
-  subscribe(listener: CampusEventListener): () => void
+  /** `replayOpen` first delivers activities still in progress, so late subscribers catch up. */
+  subscribe(listener: CampusEventListener, options?: { readonly replayOpen?: boolean }): () => void
 }
+
+const MAX_OPEN_ACTIVITIES = 256
 
 const MAX_DETAIL = 48
 
 function stripControlChars(text: string): string {
   let out = ''
-  for (const ch of text) out += ch.charCodeAt(0) < 32 ? ' ' : ch
+  for (const ch of text) {
+    out += ch.charCodeAt(0) < 32 ? ' ' : ch
+  }
   return out
 }
 
 export function sanitizeCampusEvent(event: CampusActivityEvent): CampusActivityEvent | null {
-  if (!event.activityId || !event.employeeId) return null
+  if (!event.activityId || !event.employeeId) {
+    return null
+  }
   const detail = event.detail ? stripControlChars(event.detail).slice(0, MAX_DETAIL) : undefined
   return { ...event, detail }
 }
 
 export function createCampusEventBus(): CampusEventBus {
   const listeners = new Set<CampusEventListener>()
+  const open = new Map<string, CampusActivityEvent>()
   return {
     emit(event) {
       const clean = sanitizeCampusEvent(event)
-      if (!clean) return
-      for (const l of [...listeners]) l(clean)
+      if (!clean) {
+        return
+      }
+      if (clean.status === 'started') {
+        open.set(clean.activityId, clean)
+        if (open.size > MAX_OPEN_ACTIVITIES) {
+          open.delete(open.keys().next().value as string)
+        }
+      } else {
+        open.delete(clean.activityId)
+      }
+      for (const l of Array.from(listeners)) {
+        l(clean)
+      }
     },
-    subscribe(listener) {
+    subscribe(listener, options) {
+      if (options?.replayOpen) {
+        for (const event of open.values()) {
+          listener(event)
+        }
+      }
       listeners.add(listener)
       return () => {
         listeners.delete(listener)
@@ -72,7 +98,9 @@ export function createCampusEventBus(): CampusEventBus {
 }
 
 /** Zone an activity happens in. `rest` goes to the garden. */
-export function zoneForActivity(kind: CampusActivityKind):
+export function zoneForActivity(
+  kind: CampusActivityKind
+):
   | 'git-station'
   | 'testing-lab'
   | 'review-pavilion'
@@ -96,7 +124,7 @@ export function zoneForActivity(kind: CampusActivityKind):
 }
 
 /** Tiny external store: employees currently away from their desk (their seated avatar hides). */
-export interface CampusPresenceStore {
+export type CampusPresenceStore = {
   setAway(employeeId: string, away: boolean): void
   isAway(employeeId: string): boolean
   subscribe(listener: () => void): () => void
@@ -109,11 +137,18 @@ export function createCampusPresenceStore(): CampusPresenceStore {
   let version = 0
   return {
     setAway(id, value) {
-      if (value === away.has(id)) return
-      if (value) away.add(id)
-      else away.delete(id)
+      if (value === away.has(id)) {
+        return
+      }
+      if (value) {
+        away.add(id)
+      } else {
+        away.delete(id)
+      }
       version++
-      for (const l of [...listeners]) l()
+      for (const l of Array.from(listeners)) {
+        l()
+      }
     },
     isAway: (id) => away.has(id),
     subscribe(listener) {

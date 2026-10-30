@@ -41,6 +41,7 @@ export type DirectorDeps = {
 export const MAX_ACTIVE_TRAVELERS = 16
 const MAX_QUEUED_PER_EMPLOYEE = 4
 export const MAX_PENDING_RESULTS = 64
+export const MAX_OVERFLOW = 64
 
 /**
  * Turns campus activity events into walking trips. Pure visualisation: it only moves meshes and
@@ -52,6 +53,7 @@ export class CampusDirector {
   private readonly pendingResults = new Map<string, CampusActivityEvent>()
   private readonly queues = new Map<string, CampusActivityEvent[]>() // employeeId -> waiting starts
   private readonly busyEmployees = new Set<string>()
+  private readonly overflow: CampusActivityEvent[] = [] // starts waiting for a free traveler
   private readonly slots = new Map<CampusZoneId, Set<number>>()
   private readonly slotOf = new Map<string, { zoneId: CampusZoneId; slot: number }>()
   private disposed = false
@@ -78,8 +80,71 @@ export class CampusDirector {
     const traveler = this.active.get(event.activityId)
     if (traveler) {
       traveler.resolve(event.status, event.detail)
+    } else if (event.status === 'ended' && this.dropWaiting(event.activityId)) {
+      // A trip that ended before it could start is stale; never replay it later.
     } else {
       this.rememberEarlyResult(event)
+    }
+  }
+
+  /** Removes a not-yet-started trip from the per-employee queues or the overflow list. */
+  private dropWaiting(activityId: string): boolean {
+    for (const [employeeId, q] of this.queues) {
+      const i = q.findIndex((e) => e.activityId === activityId)
+      if (i !== -1) {
+        q.splice(i, 1)
+        if (q.length === 0) {
+          this.queues.delete(employeeId)
+        }
+        return true
+      }
+    }
+    const j = this.overflow.findIndex((e) => e.activityId === activityId)
+    if (j !== -1) {
+      this.overflow.splice(j, 1)
+      return true
+    }
+    return false
+  }
+
+  /** Immediately removes actors and pending trips of Orca employees that left the world. */
+  retainEmployees(present: ReadonlySet<string>): void {
+    if (this.disposed) {
+      return
+    }
+    const gone = (e: { readonly employeeId: string; readonly source: string }): boolean =>
+      e.source === 'orca' && !present.has(e.employeeId)
+    for (const [id, traveler] of this.active) {
+      if (gone(traveler.init)) {
+        this.queues.delete(traveler.init.employeeId)
+        this.active.delete(id)
+        this.releaseSlot(id)
+        this.deps.parent.remove(traveler.init.actor.root)
+        traveler.dispose()
+        this.busyEmployees.delete(traveler.init.employeeId)
+      }
+    }
+    for (const employeeId of this.queues.keys()) {
+      if (!present.has(employeeId) && this.queues.get(employeeId)?.[0]?.source === 'orca') {
+        this.queues.delete(employeeId)
+      }
+    }
+    for (let i = this.overflow.length - 1; i >= 0; i--) {
+      if (gone(this.overflow[i])) {
+        this.overflow.splice(i, 1)
+      }
+    }
+    this.drainOverflow()
+  }
+
+  private drainOverflow(): void {
+    while (this.active.size < MAX_ACTIVE_TRAVELERS) {
+      const i = this.overflow.findIndex((e) => !this.busyEmployees.has(e.employeeId))
+      if (i === -1) {
+        return
+      }
+      const [next] = this.overflow.splice(i, 1)
+      this.start(next)
     }
   }
 
@@ -101,7 +166,7 @@ export class CampusDirector {
         return true
       }
     }
-    return false
+    return this.overflow.some((e) => e.activityId === activityId)
   }
 
   private start(event: CampusActivityEvent): void {
@@ -114,6 +179,9 @@ export class CampusDirector {
       return
     }
     if (this.active.size >= MAX_ACTIVE_TRAVELERS) {
+      if (this.overflow.length < MAX_OVERFLOW) {
+        this.overflow.push(event)
+      }
       return
     }
     const info = this.deps.resolveEmployee(event)
@@ -133,6 +201,12 @@ export class CampusDirector {
       tint: info.tint,
       shadows: this.deps.shadows ?? true
     })
+    // Identifies the actor for scene inspection (E2E); never read back by the director.
+    actor.root.userData.campus = {
+      employeeId: event.employeeId,
+      activityId: event.activityId,
+      zoneId
+    }
     this.deps.parent.add(actor.root)
     this.busyEmployees.add(event.employeeId)
     const used = this.slots.get(zoneId) ?? new Set<number>()
@@ -185,10 +259,15 @@ export class CampusDirector {
     traveler.init.actor.dispose()
     const employeeId = traveler.init.employeeId
     this.busyEmployees.delete(employeeId)
-    const next = this.queues.get(employeeId)?.shift()
+    const queue = this.queues.get(employeeId)
+    const next = queue?.shift()
+    if (queue?.length === 0) {
+      this.queues.delete(employeeId)
+    }
     if (next) {
       this.start(next)
     }
+    this.drainOverflow()
   }
 
   private releaseSlot(activityId: string): void {
@@ -210,6 +289,7 @@ export class CampusDirector {
     this.slots.clear()
     this.slotOf.clear()
     this.queues.clear()
+    this.overflow.length = 0
     this.busyEmployees.clear()
     this.pendingResults.clear()
   }

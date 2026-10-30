@@ -325,6 +325,21 @@ describe('Office 3D IDE Layout & Audit Remediation Regression Suite', () => {
       expect(screen.getByText('DEV PREVIEW')).toBeDefined()
       expect(screen.getByText('feature/auth -> origin')).toBeDefined()
       expect(screen.getByText('Synthetic Test Suite')).toBeDefined()
+      expect(screen.getByText('in progress')).toBeDefined()
+
+      act(() => {
+        campusEventBus.emit({
+          activityId: 'act-real-2',
+          employeeId: 'local::pane-a',
+          kind: 'test-run',
+          status: 'ended',
+          source: 'orca',
+          detail: 'pnpm test',
+          occurredAt: Date.now()
+        })
+      })
+      // Orca reports no outcome, so an ended activity must not read as passed or failed.
+      expect(screen.getByText('ended · outcome unknown')).toBeDefined()
     })
   })
 

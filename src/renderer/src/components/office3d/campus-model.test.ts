@@ -31,6 +31,7 @@ import {
 import { startDevPreview } from './scene/campus/campus-preview'
 import { MAX_WAIT_FOR_RESULT_SECONDS, Traveler } from './scene/campus/traveler'
 import type { Actor } from './scene/campus/build-actor'
+import { createCampusAgentActivityAdapter } from './model/campus-agent-activity'
 
 // Pure visualisation logic only: no WebGL, no Orca stores.
 if (typeof document === 'undefined') {
@@ -283,6 +284,25 @@ describe('Traveler', () => {
     expect(zone.statuses.some((s) => s.startsWith('idle|No result'))).toBe(true)
   })
 
+  it('ends an outcome-less Orca activity neutrally, never as passed or failed', () => {
+    const { t, zone, away } = makeTraveler()
+    t.resolve('ended')
+    run(t, 90)
+    expect(zone.statuses.some((s) => /^(succeeded|failed)/.test(s))).toBe(false)
+    expect(zone.statuses.some((s) => s.startsWith('idle|Git finished'))).toBe(true)
+    expect(t.finished).toBe(true)
+    expect(away).toEqual([true, false])
+  })
+
+  it('keeps a resting agent in the garden until Orca reports it back', () => {
+    const { t } = makeTraveler('rest')
+    run(t, 40 + MAX_WAIT_FOR_RESULT_SECONDS)
+    expect(t.phase).toBe('work')
+    t.resolve('ended')
+    run(t, 90)
+    expect(t.finished).toBe(true)
+  })
+
   it('dispose restores the seated avatar', () => {
     const { t, away } = makeTraveler()
     run(t, 2)
@@ -386,6 +406,99 @@ describe('CampusDirector', () => {
     const { director } = makeDirector(ids)
     ids.forEach((id, i) => director.handle(ev({ activityId: `a${i}`, employeeId: id })))
     expect(director.activeCount).toBe(MAX_ACTIVE_TRAVELERS)
+  })
+
+  it('starts over-cap trips once a traveler frees up instead of dropping them', () => {
+    const ids = Array.from({ length: MAX_ACTIVE_TRAVELERS + 2 }, (_, i) => `emp-${i}`)
+    const { director } = makeDirector(ids)
+    ids.forEach((id, i) => director.handle(ev({ activityId: `a${i}`, employeeId: id })))
+    director.handle(ev({ activityId: 'a0', employeeId: 'emp-0', status: 'ended' }))
+    for (let i = 0; i < 30 * 60; i++) {
+      director.update(1 / 30, i / 30)
+    }
+    // a0 finished and one waiting trip took its slot (without the overflow queue this would be 15).
+    expect(director.activeCount).toBe(MAX_ACTIVE_TRAVELERS)
+  })
+
+  function runDirector(director: CampusDirector, seconds: number): void {
+    for (let i = 0; i < seconds * 30; i++) {
+      director.update(1 / 30, i / 30)
+    }
+  }
+
+  function realPipeline(ids: string[]) {
+    const made = makeDirector(ids)
+    const bus = createCampusEventBus()
+    bus.subscribe((e) => made.director.handle(e), { replayOpen: true })
+    const adapter = createCampusAgentActivityAdapter(bus, () => 0)
+    return { ...made, bus, adapter }
+  }
+
+  const status = (state: 'working' | 'waiting' | 'done', command?: string) => ({
+    state,
+    toolName: command ? 'Bash' : undefined,
+    toolInput: command
+  })
+
+  it('drives several real agents to their zones and back at once', () => {
+    const { director, adapter, parent, away } = realPipeline(['e1', 'e2', 'e3'])
+    adapter.sync([
+      { employeeId: 'e1', status: status('working', 'git push') },
+      { employeeId: 'e2', status: status('working', 'pnpm test') },
+      { employeeId: 'e3', status: status('waiting') }
+    ])
+    expect(director.activeCount).toBe(3)
+    adapter.sync([
+      { employeeId: 'e1', status: status('working') },
+      { employeeId: 'e2', status: status('working') },
+      { employeeId: 'e3', status: status('working') }
+    ])
+    runDirector(director, 120)
+    expect(director.activeCount).toBe(0)
+    expect(parent.children).toHaveLength(0)
+    expect(away.filter((a) => a[1]).length).toBe(away.filter((a) => !a[1]).length)
+  })
+
+  it('never replays stale trips when an agent flaps between states quickly', () => {
+    const { director, adapter, parent } = realPipeline(['e1'])
+    for (let i = 0; i < 10; i++) {
+      adapter.sync([{ employeeId: 'e1', status: status('waiting') }])
+      adapter.sync([{ employeeId: 'e1', status: status('working') }])
+    }
+    adapter.sync([{ employeeId: 'e1', status: status('working', 'vitest') }])
+    // Only the first rest trip (already walking) and the live test trip may remain.
+    expect(director.activeCount).toBe(1)
+    runDirector(director, 60)
+    expect(director.activeCount).toBe(1)
+    expect(parent.children).toHaveLength(1)
+  })
+
+  it('removes the actor immediately when an agent session disappears', () => {
+    const { director, adapter, parent, away } = realPipeline(['e1', 'e2'])
+    adapter.sync([
+      { employeeId: 'e1', status: status('waiting') },
+      { employeeId: 'e2', status: status('waiting') }
+    ])
+    runDirector(director, 5)
+    adapter.sync([{ employeeId: 'e2', status: status('waiting') }])
+    director.retainEmployees(new Set(['e2']))
+    expect(director.activeCount).toBe(1)
+    expect(parent.children).toHaveLength(1)
+    expect(away).toContainEqual(['e1', false])
+  })
+
+  it('replays in-progress trips to a rebuilt director without duplicates', () => {
+    const { adapter, bus } = realPipeline(['e1'])
+    adapter.sync([{ employeeId: 'e1', status: status('waiting') }])
+    const rebuilt = makeDirector(['e1'])
+    bus.subscribe((e) => rebuilt.director.handle(e), { replayOpen: true })
+    expect(rebuilt.director.activeCount).toBe(1)
+    adapter.sync([{ employeeId: 'e1', status: status('waiting') }])
+    expect(rebuilt.director.activeCount).toBe(1)
+    adapter.dispose()
+    runDirector(rebuilt.director, 60)
+    expect(rebuilt.director.activeCount).toBe(0)
+    expect(rebuilt.parent.children).toHaveLength(0)
   })
 
   it('dispose restores all seated avatars', () => {

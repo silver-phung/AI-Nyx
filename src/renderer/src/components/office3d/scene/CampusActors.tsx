@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react'
-import * as THREE from 'three'
+import type * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import type { EmployeeId, OfficeWorld } from '../model/office-world-types'
@@ -21,7 +21,7 @@ import {
 } from './campus/campus-layout'
 import type { ActorSource } from './campus/build-actor'
 
-interface CampusActorsProps {
+type CampusActorsProps = {
   readonly world: OfficeWorld
   readonly campus: Campus
   readonly shadows: boolean
@@ -39,7 +39,9 @@ function isEmployeeId(value: string): value is EmployeeId {
 
 function previewIndex(employeeId: string): number {
   let h = 0
-  for (let i = 0; i < employeeId.length; i++) h = (h * 31 + employeeId.charCodeAt(i)) >>> 0
+  for (let i = 0; i < employeeId.length; i++) {
+    h = (h * 31 + employeeId.charCodeAt(i)) >>> 0
+  }
   return h
 }
 
@@ -47,7 +49,11 @@ function previewIndex(employeeId: string): number {
  * Renders agents walking between campus zones in response to campus activity events.
  * Visualisation only: it reads the world model and never calls back into Orca.
  */
-export const CampusActors = memo(function CampusActors({ world, campus, shadows }: CampusActorsProps) {
+export const CampusActors = memo(function CampusActors({
+  world,
+  campus,
+  shadows
+}: CampusActorsProps) {
   const robot = useGLTF(OFFICE_MODELS.robot) as unknown as ActorSource
   const male = useGLTF(OFFICE_MODELS.charMaleA) as unknown as ActorSource
   const female = useGLTF(OFFICE_MODELS.charFemaleA) as unknown as ActorSource
@@ -58,14 +64,18 @@ export const CampusActors = memo(function CampusActors({ world, campus, shadows 
 
   useEffect(() => {
     const parent = groupRef.current
-    if (!parent) return undefined
+    if (!parent) {
+      return undefined
+    }
     const garden = CAMPUS_ZONES['waiting-garden']
     const director = new CampusDirector({
       campus,
       parent,
       shadows,
       getSource: (kind, employeeId) => {
-        if (kind === 'robot') return robot
+        if (kind === 'robot') {
+          return robot
+        }
         return humanModelUrl(employeeId) === OFFICE_MODELS.charMaleA ? male : female
       },
       setAway: (employeeId, away) => campusPresence.setAway(employeeId, away),
@@ -78,17 +88,26 @@ export const CampusActors = memo(function CampusActors({ world, campus, shadows 
             seatYaw: Math.PI,
             seatLift: 0,
             modelKind: idx % 2 === 0 ? 'robot' : 'human',
-            tint: parseInt(getAgentColorByType(idx % 3 === 0 ? 'claude' : 'codex').slice(1), 16),
+            tint: Number.parseInt(
+              getAgentColorByType(idx % 3 === 0 ? 'claude' : 'codex').slice(1),
+              16
+            ),
             route: (target) => routeZoneToZone(garden, target)
           }
         }
         const w = worldRef.current
         // Unknown or malformed ids are ignored: no actor, no navigation, no side effects.
-        if (!isEmployeeId(event.employeeId)) return null
+        if (!isEmployeeId(event.employeeId)) {
+          return null
+        }
         const employee = w.lookup.employeeById.get(event.employeeId)
-        if (!employee) return null
+        if (!employee) {
+          return null
+        }
         const zone = w.lookup.zoneById.get(employee.zoneId)
-        if (!zone) return null
+        if (!zone) {
+          return null
+        }
         const pod = getZoneCenterCoordinates(zone.floorIndex)
         const { gridX, gridY } = getDeskGridCoordinates(employee.slotIndex)
         const robotModel = isRobotAgent(employee.agentType)
@@ -99,19 +118,25 @@ export const CampusActors = memo(function CampusActors({ world, campus, shadows 
           seatYaw: facingY + Math.PI,
           seatLift: robotModel ? SEAT_LIFT_ROBOT : SEAT_LIFT_HUMAN,
           modelKind: robotModel ? 'robot' : 'human',
-          tint: parseInt(getAgentColorByType(employee.agentType ?? 'codex').slice(1), 16),
-          route: (target) => routeDeskToZone(stand, podAisleZ(pod, Math.ceil(zone.capacity / 4)), target)
+          tint: Number.parseInt(getAgentColorByType(employee.agentType ?? 'codex').slice(1), 16),
+          route: (target) =>
+            routeDeskToZone(stand, podAisleZ(pod, Math.ceil(zone.capacity / 4)), target)
         }
       }
     })
     directorRef.current = director
-    const unsubscribe = campusEventBus.subscribe((e) => director.handle(e))
+    // The scene mounts lazily (and rebuilds on quality changes); replay trips already under way.
+    const unsubscribe = campusEventBus.subscribe((e) => director.handle(e), { replayOpen: true })
     return () => {
       unsubscribe()
       director.dispose()
       directorRef.current = null
     }
   }, [campus, shadows, robot, male, female])
+
+  useEffect(() => {
+    directorRef.current?.retainEmployees(new Set(world.employees.map((e) => e.employeeId)))
+  }, [world])
 
   useFrame((state, delta) => {
     directorRef.current?.update(Math.min(delta, 0.1), state.clock.elapsedTime)

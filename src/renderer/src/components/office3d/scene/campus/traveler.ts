@@ -23,7 +23,7 @@ export type TravelerPhase =
   | 'sit'
   | 'done'
 
-export interface TravelerInit {
+export type TravelerInit = {
   readonly activityId: string
   readonly employeeId: string
   readonly kind: CampusActivityKind
@@ -47,7 +47,7 @@ const ARRIVE_SECONDS = 0.5
 const MIN_WORK_SECONDS = 2.4
 const RESULT_SECONDS = 3.2
 const SIT_SECONDS = 0.6
-/** If a result never arrives we do not invent one; we give up waiting and walk home. */
+/** If a result never arrives we do not invent one; we give up waiting and walk home. Rest is open-ended. */
 export const MAX_WAIT_FOR_RESULT_SECONDS = 90
 
 const WORK_CLIP: Record<CampusActivityKind, ActorClipRole> = {
@@ -100,7 +100,9 @@ export class Traveler {
 
   /** Called when the final status (succeeded/failed) for this activity arrives. */
   resolve(status: CampusActivityStatus, detail?: string): void {
-    if (status === 'started') return
+    if (status === 'started') {
+      return
+    }
     this.result = status
     this.resultDetail = detail
   }
@@ -129,13 +131,20 @@ export class Traveler {
         this.x = this.init.seat.x + (stand.x - this.init.seat.x) * u
         this.z = this.init.seat.z + (stand.z - this.init.seat.z) * u
         this.y = (this.init.seatLift ?? 0) * (1 - u)
-        if (u > 0.35) actor.setClip('idle')
+        if (u > 0.35) {
+          actor.setClip('idle')
+        }
         if (u >= 1) {
           this.enter('walk-out')
           actor.setClip('walk')
           actor.setCarrying(CARRIES[this.init.kind])
           actor.setPackageScale(1)
-          zone.setStatus('working', 'Incoming', this.init.detail, this.init.source === 'dev-preview')
+          zone.setStatus(
+            'working',
+            'Incoming',
+            this.init.detail,
+            this.init.source === 'dev-preview'
+          )
         }
         break
       }
@@ -161,13 +170,29 @@ export class Traveler {
         }
         if (this.t > 0.8) {
           actor.setPackageScale(Math.max(0, 1 - (this.t - 0.8) / 0.5))
-          if (this.t > 1.3) actor.setClip(WORK_CLIP[this.init.kind])
+          if (this.t > 1.3) {
+            actor.setClip(WORK_CLIP[this.init.kind])
+          }
         }
         if (!this.workShown) {
           this.workShown = true
-          zone.setStatus('working', labelFor(this.init.kind, 'working'), this.init.detail, this.init.source === 'dev-preview')
+          zone.setStatus(
+            'working',
+            labelFor(this.init.kind, 'working'),
+            this.init.detail,
+            this.init.source === 'dev-preview'
+          )
         }
-        if (this.result && this.t >= MIN_WORK_SECONDS) {
+        if (this.result === 'ended' && this.t >= MIN_WORK_SECONDS) {
+          this.enter('result')
+          actor.setClip('idle')
+          zone.setStatus(
+            'idle',
+            labelFor(this.init.kind, 'ended'),
+            this.resultDetail ?? this.init.detail,
+            this.init.source === 'dev-preview'
+          )
+        } else if (this.result && this.t >= MIN_WORK_SECONDS) {
           this.enter('result')
           const ok = this.result === 'succeeded'
           actor.setClip(ok ? 'success' : 'failure')
@@ -178,10 +203,15 @@ export class Traveler {
             this.resultDetail ?? this.init.detail,
             this.init.source === 'dev-preview'
           )
-        } else if (this.t > MAX_WAIT_FOR_RESULT_SECONDS) {
+        } else if (this.init.kind !== 'rest' && this.t > MAX_WAIT_FOR_RESULT_SECONDS) {
           this.enter('result')
           actor.setClip('idle')
-          zone.setStatus('idle', 'No result', 'Nothing was reported', this.init.source === 'dev-preview')
+          zone.setStatus(
+            'idle',
+            'No result',
+            'Nothing was reported',
+            this.init.source === 'dev-preview'
+          )
         }
         break
       }
@@ -233,28 +263,45 @@ export class Traveler {
     this.x = s.x
     this.z = s.z
     this.turnTo(s.yaw, dt, 12)
-    if (this.distance >= path.length) onEnd()
+    if (this.distance >= path.length) {
+      onEnd()
+    }
   }
 
   /** Cancels the trip immediately and restores the seated avatar. */
   dispose(): void {
-    if (this.phase !== 'done') this.init.onAway?.(false)
+    if (this.phase !== 'done') {
+      this.init.onAway?.(false)
+    }
     this.phase = 'done'
     this.init.actor.dispose()
   }
 }
 
-function labelFor(kind: CampusActivityKind, state: 'working' | 'succeeded' | 'failed'): string {
+function labelFor(
+  kind: CampusActivityKind,
+  state: 'working' | 'succeeded' | 'failed' | 'ended'
+): string {
   const noun: Record<CampusActivityKind, string> = {
-    'git-push': 'Push',
+    'git-push': 'Git',
     'test-run': 'Tests',
     'code-review': 'Review',
     deploy: 'Deploy',
     meeting: 'Meeting',
     rest: 'Resting'
   }
+  if (state === 'ended') {
+    return kind === 'rest' ? 'Back to work' : `${noun[kind]} finished`
+  }
+  if (kind === 'rest' && state === 'working') {
+    return 'Resting'
+  }
   const verb = state === 'working' ? 'running' : state === 'succeeded' ? 'passed' : 'failed'
-  if (kind === 'git-push') return state === 'working' ? 'Pushing' : state === 'succeeded' ? 'Pushed' : 'Push failed'
-  if (kind === 'deploy') return state === 'working' ? 'Deploying' : state === 'succeeded' ? 'Deployed' : 'Deploy failed'
+  if (kind === 'git-push') {
+    return state === 'working' ? 'Git running' : state === 'succeeded' ? 'Pushed' : 'Push failed'
+  }
+  if (kind === 'deploy') {
+    return state === 'working' ? 'Deploying' : state === 'succeeded' ? 'Deployed' : 'Deploy failed'
+  }
   return `${noun[kind]} ${verb}`
 }

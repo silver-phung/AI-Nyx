@@ -13,6 +13,7 @@ import { Office3DDomOverview } from './layout/Office3DDomOverview'
 import { Office3DViewport } from './panels/Office3DViewport'
 import { Office3DTerminalPanel } from './panels/Office3DTerminalPanel'
 import { Office3DRightPanel } from './panels/Office3DRightPanel'
+import { useCampusAgentActivity } from './hooks/useCampusAgentActivity'
 
 function isInteractiveOrFocusTrapped(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) {
@@ -163,6 +164,8 @@ export function Office3DPage(): React.JSX.Element {
     })
     return unsub
   }, [])
+  // Declared after the timeline subscription so the first real events are logged too.
+  useCampusAgentActivity(world)
 
   // Keyboard navigation: Enter to focus selected agent, Escape to deselect or return
   useEffect(() => {

@@ -72,6 +72,9 @@ class WebGLErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   }
 }
 
+// Synthetic campus traffic must never appear beside real agent activity in shipped builds.
+const DEV_PREVIEW_AVAILABLE = import.meta.env.DEV || import.meta.env.MODE === 'test'
+
 // Lightweight inner FPS monitor
 function FpsTracker({ onFpsUpdate }: { onFpsUpdate: (fps: number) => void }) {
   const frameCount = useRef(0)
@@ -170,7 +173,7 @@ export const Office3DCanvas = memo(function Office3DCanvas({
 
   // Dev preview: clearly synthetic activity, isolated from real Orca sessions.
   useEffect(() => {
-    if (!devPreview) {
+    if (!devPreview || !DEV_PREVIEW_AVAILABLE) {
       return undefined
     }
     return startDevPreview(campusEventBus)
@@ -237,21 +240,23 @@ export const Office3DCanvas = memo(function Office3DCanvas({
             </button>
           ))}
         </div>
-        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 text-[11px]">
-          <button
-            type="button"
-            data-testid="campus-dev-preview"
-            className={`rounded-full border px-2.5 py-1 backdrop-blur-md transition-colors ${
-              devPreview
-                ? 'border-amber-300/70 bg-amber-500/25 text-amber-100'
-                : 'border-slate-600/60 bg-slate-950/70 text-slate-200 hover:bg-slate-800/80'
-            }`}
-            title="Plays synthetic agents walking between zones. Not real activity; never touches Orca sessions."
-            onClick={() => setDevPreview((v) => !v)}
-          >
-            {devPreview ? 'DEV PREVIEW on (synthetic)' : 'DEV PREVIEW: simulate activity'}
-          </button>
-        </div>
+        {DEV_PREVIEW_AVAILABLE ? (
+          <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 text-[11px]">
+            <button
+              type="button"
+              data-testid="campus-dev-preview"
+              className={`rounded-full border px-2.5 py-1 backdrop-blur-md transition-colors ${
+                devPreview
+                  ? 'border-amber-300/70 bg-amber-500/25 text-amber-100'
+                  : 'border-slate-600/60 bg-slate-950/70 text-slate-200 hover:bg-slate-800/80'
+              }`}
+              title="Plays synthetic agents walking between zones. Not real activity; never touches Orca sessions."
+              onClick={() => setDevPreview((v) => !v)}
+            >
+              {devPreview ? 'DEV PREVIEW on (synthetic)' : 'DEV PREVIEW: simulate activity'}
+            </button>
+          </div>
+        ) : null}
         <Canvas
           frameloop={isDocumentVisible ? 'always' : 'never'}
           dpr={dpr as [number, number] | number}
@@ -268,7 +273,10 @@ export const Office3DCanvas = memo(function Office3DCanvas({
             state.gl.toneMapping = THREE.ACESFilmicToneMapping
             state.gl.toneMappingExposure = 1.2
             // Debug handle: development and test builds only, never production.
-            const exposeDebug = import.meta.env.DEV || import.meta.env.MODE === 'test'
+            const exposeDebug =
+              import.meta.env.DEV ||
+              import.meta.env.MODE === 'test' ||
+              import.meta.env.MODE === 'e2e'
             const debugWindow = window as unknown as { __THREE_STATE__?: RootState }
             if (exposeDebug) {
               debugWindow.__THREE_STATE__ = state
