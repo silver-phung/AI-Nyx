@@ -5,13 +5,13 @@ import { buildZones, type ZoneView } from './build-zones'
 import { CAMPUS_HUB, type CampusZoneId } from './campus-layout'
 import { ResourceBag } from './campus-kit'
 
-export interface CampusOptions {
+export type CampusOptions = {
   /** Number of pod rows in the Coding Studio (extends the studio plinth). */
   readonly podRows: number
   readonly shadows: boolean
 }
 
-export interface Campus {
+export type Campus = {
   readonly root: THREE.Group
   readonly zones: ReadonlyMap<CampusZoneId, ZoneView>
   readonly sky: CampusSky
@@ -49,7 +49,9 @@ export function createCampus(options: CampusOptions): Campus {
   root.add(hemi)
   // Shadow-casting key light: same azimuth as the visible moon but higher, so shadows stay short.
   const keyDir = new THREE.Vector3(sky.moonDirection.x, 0, sky.moonDirection.z).normalize()
-  keyDir.multiplyScalar(Math.cos(THREE.MathUtils.degToRad(54))).setY(Math.sin(THREE.MathUtils.degToRad(54)))
+  keyDir
+    .multiplyScalar(Math.cos(THREE.MathUtils.degToRad(54)))
+    .setY(Math.sin(THREE.MathUtils.degToRad(54)))
   const moon = new THREE.DirectionalLight(0xbccaff, 2.6)
   moon.position.copy(keyDir).multiplyScalar(130).add(CAMPUS_CENTER)
   moon.target.position.copy(CAMPUS_CENTER)
@@ -88,12 +90,16 @@ export function createCampus(options: CampusOptions): Campus {
         }
       }
       ground.update(t)
-      for (const z of zoneViews) z.update(t)
+      for (const z of zoneViews) {
+        z.update(t)
+      }
     },
     setShadows(enabled: boolean): void {
       moon.castShadow = enabled
     },
     dispose(): void {
+      // The light owns its shadow-map render target; geometry/material/texture are released by the bag.
+      moon.shadow.dispose()
       bag.dispose()
       root.clear()
     }

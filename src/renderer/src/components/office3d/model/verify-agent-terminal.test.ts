@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DashboardCard } from '../../../../../shared/dashboard-snapshot'
+import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { OfficeEmployee } from './office-world-types'
 import { verifyAgentTerminal } from './verify-agent-terminal'
 
@@ -147,19 +148,19 @@ describe('verifyAgentTerminal', () => {
   it('identifies remote SSH/WSL hosts and flags safeForDirectInput as false', () => {
     const emp = createSampleEmployee({
       leafId: null,
-      executionHostId: 'ssh:remote-server' as any,
+      executionHostId: 'ssh:remote-server' as ExecutionHostId,
       revealTarget: {
         repoId: 'repo-1',
         worktreeId: 'wt-1',
         tabId: 'tab-1',
         leafId: null,
-        executionHostId: 'ssh:remote-server' as any,
+        executionHostId: 'ssh:remote-server' as ExecutionHostId,
         isRoutable: true
       }
     })
     const card = createSampleCard({
       hostKind: 'ssh',
-      executionHostId: 'ssh:remote-server' as any,
+      executionHostId: 'ssh:remote-server' as ExecutionHostId,
       leafId: null
     })
 

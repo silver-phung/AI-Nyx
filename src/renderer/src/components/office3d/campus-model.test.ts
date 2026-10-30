@@ -39,7 +39,9 @@ if (typeof document === 'undefined') {
   }
 }
 
-function ev(partial: Partial<CampusActivityEvent> & Pick<CampusActivityEvent, 'activityId' | 'employeeId'>): CampusActivityEvent {
+function ev(
+  partial: Partial<CampusActivityEvent> & Pick<CampusActivityEvent, 'activityId' | 'employeeId'>
+): CampusActivityEvent {
   return { kind: 'git-push', status: 'started', source: 'orca', occurredAt: 0, ...partial }
 }
 
@@ -67,7 +69,8 @@ function stubZone(id: ZoneView['id']): ZoneView & { statuses: string[]; packages
     labels: [],
     packageTarget: new THREE.Vector3(),
     update: () => undefined,
-    setStatus: (s, headline, detail, preview) => void statuses.push(`${s}|${headline}|${detail ?? ''}|${preview ? 'preview' : 'real'}`),
+    setStatus: (s, headline, detail, preview) =>
+      void statuses.push(`${s}|${headline}|${detail ?? ''}|${preview ? 'preview' : 'real'}`),
     receivePackage: () => {
       packages++
     },
@@ -85,7 +88,10 @@ describe('campus layout', () => {
     const ring = Object.values(CAMPUS_ZONES)
     expect(ring).toHaveLength(6)
     for (const z of ring) {
-      expect(Math.hypot(z.center.x - CAMPUS_HUB.x, z.center.z - CAMPUS_HUB.z)).toBeCloseTo(RING_RADIUS, 5)
+      expect(Math.hypot(z.center.x - CAMPUS_HUB.x, z.center.z - CAMPUS_HUB.z)).toBeCloseTo(
+        RING_RADIUS,
+        5
+      )
     }
     expect(new Set(ALL_ZONE_DEFS.map((z) => z.id)).size).toBe(7)
   })
@@ -94,7 +100,7 @@ describe('campus layout', () => {
     const pod = { x: 5.5, z: 5.5 }
     const stand = deskStandPoint(pod, -1, 0)
     const path = routeDeskToZone(stand, podAisleZ(pod, 1), CAMPUS_ZONES['git-station'])
-    const last = path.points[path.points.length - 1]
+    const last = path.points.at(-1)
     expect(path.points[0]).toEqual(stand)
     expect(last).toEqual(CAMPUS_ZONES['git-station'].spot)
     expect(path.length).toBeGreaterThan(40)
@@ -103,7 +109,11 @@ describe('campus layout', () => {
   })
 
   it('samples and reverses paths consistently', () => {
-    const p = buildPath([{ x: 0, z: 0 }, { x: 10, z: 0 }, { x: 10, z: 10 }])
+    const p = buildPath([
+      { x: 0, z: 0 },
+      { x: 10, z: 0 },
+      { x: 10, z: 10 }
+    ])
     expect(p.length).toBe(20)
     expect(samplePath(p, 5).x).toBe(5)
     expect(samplePath(p, 15)).toEqual({ x: 10, z: 5, yaw: 0 })
@@ -121,10 +131,13 @@ describe('station slots', () => {
     })
     for (let i = 0; i < pts.length; i++) {
       for (let j = i + 1; j < pts.length; j++) {
-        expect(Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z)).toBeGreaterThan(1.0)
+        expect(Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z)).toBeGreaterThan(1)
       }
     }
-    const base = buildPath([{ x: 0, z: 0 }, { x: 4, z: 0 }])
+    const base = buildPath([
+      { x: 0, z: 0 },
+      { x: 4, z: 0 }
+    ])
     expect(offsetPathEnd(base, { x: 0, z: 1 }).points[1]).toEqual({ x: 4, z: 1 })
     expect(offsetPathEnd(base, { x: 0, z: 0 })).toBe(base)
   })
@@ -135,7 +148,10 @@ describe('station slots', () => {
     const parent = new THREE.Group()
     const scene = new THREE.Group()
     scene.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.7, 0.3), new THREE.MeshBasicMaterial()))
-    const source: ActorSource = { scene, animations: ['idle', 'walk', 'sit'].map((n) => new THREE.AnimationClip(n, 1, [])) }
+    const source: ActorSource = {
+      scene,
+      animations: ['idle', 'walk', 'sit'].map((n) => new THREE.AnimationClip(n, 1, []))
+    }
     const director = new CampusDirector({
       campus: { zones } as unknown as Campus,
       parent,
@@ -144,14 +160,21 @@ describe('station slots', () => {
       resolveEmployee: () => {
         const pod = { x: 5.5, z: 5.5 }
         const stand = deskStandPoint(pod, -1, 0)
-        return { seat: deskSeatPoint(pod, -1, 0), seatYaw: 0, modelKind: 'human', route: (t) => routeDeskToZone(stand, podAisleZ(pod, 1), t) }
+        return {
+          seat: deskSeatPoint(pod, -1, 0),
+          seatYaw: 0,
+          modelKind: 'human',
+          route: (t) => routeDeskToZone(stand, podAisleZ(pod, 1), t)
+        }
       }
     })
     director.handle(ev({ activityId: 'a', employeeId: 'e1' }))
     director.handle(ev({ activityId: 'b', employeeId: 'e2' }))
-    for (let i = 0; i < 30 * 40; i++) director.update(1 / 30, i / 30)
+    for (let i = 0; i < 30 * 40; i++) {
+      director.update(1 / 30, i / 30)
+    }
     const [a, b] = parent.children
-    expect(Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z)).toBeGreaterThan(1.0)
+    expect(Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z)).toBeGreaterThan(1)
     director.dispose()
   })
 })
@@ -169,7 +192,9 @@ describe('campus events', () => {
 
   it('rejects events without ids and sanitises detail text', () => {
     expect(sanitizeCampusEvent(ev({ activityId: '', employeeId: 'e' }))).toBeNull()
-    const clean = sanitizeCampusEvent(ev({ activityId: 'a', employeeId: 'e', detail: 'x\u0007y'.padEnd(80, 'z') }))
+    const clean = sanitizeCampusEvent(
+      ev({ activityId: 'a', employeeId: 'e', detail: 'x\u0007y'.padEnd(80, 'z') })
+    )
     expect(clean?.detail?.length).toBe(48)
     expect(clean?.detail?.includes('\u0007')).toBe(false)
   })
@@ -221,7 +246,9 @@ describe('Traveler', () => {
   }
 
   function run(t: Traveler, seconds: number): void {
-    for (let i = 0; i < seconds * 30; i++) t.update(1 / 30, i / 30)
+    for (let i = 0; i < seconds * 30; i++) {
+      t.update(1 / 30, i / 30)
+    }
   }
 
   it('walks to the station, shows the real result, and returns to the seat', () => {
@@ -239,7 +266,7 @@ describe('Traveler', () => {
     expect(t.finished).toBe(true)
     expect(away).toEqual([true, false])
     expect(actor.log.includes('carry:true')).toBe(true)
-    expect(zone.statuses[zone.statuses.length - 1].startsWith('idle|Idle')).toBe(true)
+    expect(zone.statuses.at(-1)?.startsWith('idle|Idle')).toBe(true)
   })
 
   it('shows failure honestly', () => {
@@ -270,17 +297,33 @@ describe('CampusDirector', () => {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.7, 0.3), new THREE.MeshBasicMaterial())
     body.position.y = 0.85
     scene.add(body)
-    const names = ['idle', 'walk', 'sit', 'interact-right', 'interact-left', 'emote-yes', 'emote-no', 'pick-up']
+    const names = [
+      'idle',
+      'walk',
+      'sit',
+      'interact-right',
+      'interact-left',
+      'emote-yes',
+      'emote-no',
+      'pick-up'
+    ]
     return { scene, animations: names.map((n) => new THREE.AnimationClip(n, 1, [])) }
   }
 
   function makeDirector(known: string[]) {
     const zones = new Map<string, ZoneView>()
-    for (const id of ['git-station', 'testing-lab', 'review-pavilion', 'deployment-center', 'meeting-area', 'waiting-garden'] as const) {
+    for (const id of [
+      'git-station',
+      'testing-lab',
+      'review-pavilion',
+      'deployment-center',
+      'meeting-area',
+      'waiting-garden'
+    ] as const) {
       zones.set(id, stubZone(id))
     }
     const parent = new THREE.Group()
-    const away: Array<[string, boolean]> = []
+    const away: [string, boolean][] = []
     const source = fakeSource()
     const director = new CampusDirector({
       campus: { zones } as unknown as Campus,
@@ -288,7 +331,9 @@ describe('CampusDirector', () => {
       getSource: () => source,
       setAway: (id, a) => away.push([id, a]),
       resolveEmployee: (e) => {
-        if (!known.includes(e.employeeId)) return null
+        if (!known.includes(e.employeeId)) {
+          return null
+        }
         const pod = { x: 5.5, z: 5.5 }
         const stand = deskStandPoint(pod, -1, 0)
         return {
@@ -316,7 +361,9 @@ describe('CampusDirector', () => {
     expect(director.activeCount).toBe(1)
     expect(parent.children).toHaveLength(1)
     director.handle(ev({ activityId: 'a', employeeId: 'emp-1', status: 'succeeded' }))
-    for (let i = 0; i < 30 * 120; i++) director.update(1 / 30, i / 30)
+    for (let i = 0; i < 30 * 120; i++) {
+      director.update(1 / 30, i / 30)
+    }
     expect(director.activeCount).toBe(0)
     expect(parent.children).toHaveLength(0)
     expect(away.map((a) => a[1])).toEqual([true, false])
@@ -328,7 +375,9 @@ describe('CampusDirector', () => {
     director.handle(ev({ activityId: 'b', employeeId: 'emp-1', kind: 'test-run' }))
     expect(director.activeCount).toBe(1)
     director.handle(ev({ activityId: 'a', employeeId: 'emp-1', status: 'succeeded' }))
-    for (let i = 0; i < 30 * 120; i++) director.update(1 / 30, i / 30)
+    for (let i = 0; i < 30 * 120; i++) {
+      director.update(1 / 30, i / 30)
+    }
     expect(director.activeCount).toBe(1) // 'b' started after 'a' finished
   })
 
@@ -363,7 +412,7 @@ describe('dev preview generator', () => {
     const bus = createCampusEventBus()
     const events: CampusActivityEvent[] = []
     bus.subscribe((e) => events.push(e))
-    const timers: Array<{ fn: () => void; due: number; alive: boolean }> = []
+    const timers: { fn: () => void; due: number; alive: boolean }[] = []
     let clock = 0
     const stop = startDevPreview(bus, {
       setTimer: (fn, ms) => {
@@ -377,7 +426,9 @@ describe('dev preview generator', () => {
     })
     for (let guard = 0; guard < 80; guard++) {
       const next = timers.filter((t) => t.alive).sort((a, b) => a.due - b.due)[0]
-      if (!next || next.due > 120000) break
+      if (!next || next.due > 120000) {
+        break
+      }
       clock = next.due
       next.alive = false
       next.fn()
@@ -389,7 +440,11 @@ describe('dev preview generator', () => {
     const started = events.filter((e) => e.status === 'started').length
     stop()
     const before = events.length
-    for (const t of timers) if (t.alive) t.fn()
+    for (const t of timers) {
+      if (t.alive) {
+        t.fn()
+      }
+    }
     expect(events.length).toBe(before)
     expect(started).toBeGreaterThan(1)
   })

@@ -3,7 +3,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { Office3DPage } from './Office3DPage'
-import type { DashboardSnapshot } from '../../../../shared/dashboard-snapshot'
+import type { DashboardCard, DashboardSnapshot } from '../../../../shared/dashboard-snapshot'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { campusEventBus } from './scene/campus/campus-events'
 
@@ -52,7 +52,7 @@ const mockSnapshot: DashboardSnapshot = {
       repoName: 'backend',
       worktreeName: 'feature/auth',
       hostKind: 'ssh',
-      executionHostId: 'ssh:cluster-prod' as any,
+      executionHostId: 'ssh:cluster-prod' as unknown as DashboardCard['executionHostId'],
       startedAt: 200,
       finishedAt: null,
       stateChangedAt: 250,
@@ -103,7 +103,11 @@ vi.mock('@/components/dashboard/reveal-dashboard-agent', () => ({
 }))
 
 vi.mock('../dashboard-popout/AgentTerminalPreview', () => ({
-  AgentTerminalPreview: (props: any) => (
+  AgentTerminalPreview: (props: {
+    ptyId?: string
+    readOnly?: boolean
+    disableAutoFocus?: boolean
+  }) => (
     <div
       data-testid="agent-terminal-preview"
       data-pty-id={props.ptyId}
@@ -116,23 +120,33 @@ vi.mock('../dashboard-popout/AgentTerminalPreview', () => ({
 }))
 
 vi.mock('./scene/Office3DCanvas', () => ({
-  Office3DCanvas: (props: any) => (
+  Office3DCanvas: (props: {
+    world: { employees: { paneKey: string }[] }
+    onSelectEmployee: (emp: unknown) => void
+    onClearSelection: () => void
+  }) => (
     <div data-testid="office3d-canvas-mock">
       <button
         data-testid="btn-select-agent-a"
-        onClick={() => props.onSelectEmployee(props.world.employees.find((e: any) => e.paneKey === 'pane-a'))}
+        onClick={() =>
+          props.onSelectEmployee(props.world.employees.find((e) => e.paneKey === 'pane-a'))
+        }
       >
         Select Agent A
       </button>
       <button
         data-testid="btn-select-agent-b"
-        onClick={() => props.onSelectEmployee(props.world.employees.find((e: any) => e.paneKey === 'pane-b'))}
+        onClick={() =>
+          props.onSelectEmployee(props.world.employees.find((e) => e.paneKey === 'pane-b'))
+        }
       >
         Select Agent B
       </button>
       <button
         data-testid="btn-select-agent-headless"
-        onClick={() => props.onSelectEmployee(props.world.employees.find((e: any) => e.paneKey === 'pane-headless'))}
+        onClick={() =>
+          props.onSelectEmployee(props.world.employees.find((e) => e.paneKey === 'pane-headless'))
+        }
       >
         Select Headless Agent
       </button>
@@ -145,7 +159,7 @@ vi.mock('./scene/Office3DCanvas', () => ({
 
 vi.mock('@/store', () => ({
   useAppStore: Object.assign(
-    (selector: (s: any) => unknown) =>
+    (selector: (s: Record<string, unknown>) => unknown) =>
       selector({
         closeOffice3DPage: mockCloseOffice3DPage,
         activeWorktreeId: 'wt-1',
@@ -181,7 +195,7 @@ describe('Office 3D IDE Layout & Audit Remediation Regression Suite', () => {
         }
       }
       return null
-    }) as any
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext
   })
 
   afterEach(() => {

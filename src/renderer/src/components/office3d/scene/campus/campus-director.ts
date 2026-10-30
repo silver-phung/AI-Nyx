@@ -1,15 +1,20 @@
-import * as THREE from 'three'
+import type * as THREE from 'three'
 import { createActor, type Actor, type ActorModelKind, type ActorSource } from './build-actor'
 import type { Campus } from './build-campus'
+import { zoneForActivity, type CampusActivityEvent } from './campus-events'
 import {
-  zoneForActivity,
-  type CampusActivityEvent
-} from './campus-events'
-import { getZoneDef, offsetPathEnd, slotOffset, type CampusPath, type CampusZoneId, type CampusPoint, type CampusZoneDef } from './campus-layout'
+  getZoneDef,
+  offsetPathEnd,
+  slotOffset,
+  type CampusPath,
+  type CampusZoneId,
+  type CampusPoint,
+  type CampusZoneDef
+} from './campus-layout'
 import { Traveler } from './traveler'
 
 /** Where an employee (or preview agent) starts, and how it walks to a zone. */
-export interface DirectorEmployeeInfo {
+export type DirectorEmployeeInfo = {
   readonly seat: CampusPoint
   readonly seatYaw: number
   readonly seatLift?: number
@@ -18,7 +23,7 @@ export interface DirectorEmployeeInfo {
   readonly route: (target: CampusZoneDef) => CampusPath
 }
 
-export interface DirectorDeps {
+export type DirectorDeps = {
   readonly campus: Campus
   /** Parent that receives the actors' root objects. */
   readonly parent: THREE.Object3D
@@ -35,6 +40,7 @@ export interface DirectorDeps {
 
 export const MAX_ACTIVE_TRAVELERS = 16
 const MAX_QUEUED_PER_EMPLOYEE = 4
+export const MAX_PENDING_RESULTS = 64
 
 /**
  * Turns campus activity events into walking trips. Pure visualisation: it only moves meshes and
@@ -59,36 +65,67 @@ export class CampusDirector {
   }
 
   handle(event: CampusActivityEvent): void {
-    if (this.disposed) return
+    if (this.disposed) {
+      return
+    }
     if (event.status === 'started') {
-      if (this.active.has(event.activityId) || this.isQueued(event.activityId)) return
+      if (this.active.has(event.activityId) || this.isQueued(event.activityId)) {
+        return
+      }
       this.start(event)
       return
     }
     const traveler = this.active.get(event.activityId)
-    if (traveler) traveler.resolve(event.status, event.detail)
-    else this.pendingResults.set(event.activityId, event)
+    if (traveler) {
+      traveler.resolve(event.status, event.detail)
+    } else {
+      this.rememberEarlyResult(event)
+    }
+  }
+
+  /** Keep results that arrive before their start, but never grow without bound if a start was dropped. */
+  private rememberEarlyResult(event: CampusActivityEvent): void {
+    this.pendingResults.set(event.activityId, event)
+    while (this.pendingResults.size > MAX_PENDING_RESULTS) {
+      const oldest = this.pendingResults.keys().next().value
+      if (oldest === undefined) {
+        break
+      }
+      this.pendingResults.delete(oldest)
+    }
   }
 
   private isQueued(activityId: string): boolean {
-    for (const q of this.queues.values()) if (q.some((e) => e.activityId === activityId)) return true
+    for (const q of this.queues.values()) {
+      if (q.some((e) => e.activityId === activityId)) {
+        return true
+      }
+    }
     return false
   }
 
   private start(event: CampusActivityEvent): void {
     if (this.busyEmployees.has(event.employeeId)) {
       const q = this.queues.get(event.employeeId) ?? []
-      if (q.length < MAX_QUEUED_PER_EMPLOYEE) q.push(event)
+      if (q.length < MAX_QUEUED_PER_EMPLOYEE) {
+        q.push(event)
+      }
       this.queues.set(event.employeeId, q)
       return
     }
-    if (this.active.size >= MAX_ACTIVE_TRAVELERS) return
+    if (this.active.size >= MAX_ACTIVE_TRAVELERS) {
+      return
+    }
     const info = this.deps.resolveEmployee(event)
     const source = info ? this.deps.getSource(info.modelKind, event.employeeId) : null
-    if (!info || !source) return
+    if (!info || !source) {
+      return
+    }
     const zoneId = zoneForActivity(event.kind)
     const zone = this.deps.campus.zones.get(zoneId)
-    if (!zone) return
+    if (!zone) {
+      return
+    }
     const zoneDef = getZoneDef(zoneId)
     const actor: Actor = createActor({
       source,
@@ -100,7 +137,9 @@ export class CampusDirector {
     this.busyEmployees.add(event.employeeId)
     const used = this.slots.get(zoneId) ?? new Set<number>()
     let slot = 0
-    while (used.has(slot)) slot++
+    while (used.has(slot)) {
+      slot++
+    }
     used.add(slot)
     this.slots.set(zoneId, used)
     this.slotOf.set(event.activityId, { zoneId, slot })
@@ -128,7 +167,9 @@ export class CampusDirector {
   }
 
   update(dt: number, timeSeconds: number): void {
-    if (this.disposed) return
+    if (this.disposed) {
+      return
+    }
     for (const [id, traveler] of this.active) {
       traveler.update(dt, timeSeconds)
       if (traveler.finished) {
@@ -145,12 +186,16 @@ export class CampusDirector {
     const employeeId = traveler.init.employeeId
     this.busyEmployees.delete(employeeId)
     const next = this.queues.get(employeeId)?.shift()
-    if (next) this.start(next)
+    if (next) {
+      this.start(next)
+    }
   }
 
   private releaseSlot(activityId: string): void {
     const s = this.slotOf.get(activityId)
-    if (!s) return
+    if (!s) {
+      return
+    }
     this.slots.get(s.zoneId)?.delete(s.slot)
     this.slotOf.delete(activityId)
   }

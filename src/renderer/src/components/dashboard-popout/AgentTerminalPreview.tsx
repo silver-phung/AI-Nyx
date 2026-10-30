@@ -204,6 +204,8 @@ export function AgentTerminalPreview({
         }
         terminal = standalone.terminal
         terminalRef.current = terminal
+        // oxlint-disable-next-line typescript/consistent-type-assertions
+        ;(container as unknown as { __xterm?: Terminal }).__xterm = terminal
       } else if (replaceExisting) {
         // Why: keep the old frame visible during capture, then atomically replace it once the authoritative snapshot arrives.
         terminal.resize(
@@ -246,6 +248,8 @@ export function AgentTerminalPreview({
     }
 
     const releaseTerminal = (): void => {
+      // oxlint-disable-next-line typescript/consistent-type-assertions
+      delete (container as unknown as { __xterm?: Terminal }).__xterm
       offData?.()
       offData = null
       standalone?.dispose()
@@ -338,6 +342,8 @@ export function AgentTerminalPreview({
     // Fill container in resizable IDE panels or retain explicit caller dimensions; fit/clip true PTY frame at cursor end.
     <div
       data-agent-terminal-preview
+      data-testid="agent-terminal-preview"
+      data-pty-id={ptyId}
       className={cn(
         'relative h-full w-full min-h-0 flex-1 overflow-hidden bg-background p-1.5',
         className

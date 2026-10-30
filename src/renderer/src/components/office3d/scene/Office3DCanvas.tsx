@@ -3,19 +3,24 @@ import { Canvas, useFrame, type RootState } from '@react-three/fiber'
 import * as THREE from 'three'
 import { AlertTriangle, RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { OfficeDesk, OfficeEmployee, OfficeWorld, OfficeZone } from '../model/office-world-types'
+import type {
+  OfficeDesk,
+  OfficeEmployee,
+  OfficeWorld,
+  OfficeZone
+} from '../model/office-world-types'
 import { Office3DScene } from './Office3DScene'
 import { CAMPUS_ZONES, STUDIO_ZONE, type CampusZoneId } from './campus/campus-layout'
 import type { CampusViewPreset } from './campus/campus-view'
 import { campusEventBus } from './campus/campus-events'
 import { startDevPreview } from './campus/campus-preview'
 
-interface ErrorBoundaryProps {
+type ErrorBoundaryProps = {
   readonly children: ReactNode
   readonly onFallback: () => void
 }
 
-interface ErrorBoundaryState {
+type ErrorBoundaryState = {
   readonly hasError: boolean
   readonly error: Error | null
 }
@@ -43,7 +48,8 @@ class WebGLErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
           <div className="space-y-1">
             <h3 className="font-semibold text-lg">3D Acceleration Unavailable</h3>
             <p className="text-sm text-muted-foreground max-w-md">
-              WebGL rendering encountered an issue. You can retry initialization or view your live agents in the DOM overview.
+              WebGL rendering encountered an issue. You can retry initialization or view your live
+              agents in the DOM overview.
             </p>
           </div>
           <div className="flex items-center gap-3 pt-2">
@@ -69,11 +75,12 @@ class WebGLErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
 // Lightweight inner FPS monitor
 function FpsTracker({ onFpsUpdate }: { onFpsUpdate: (fps: number) => void }) {
   const frameCount = useRef(0)
-  const lastTime = useRef(performance.now())
+  const lastTime = useRef<number | null>(null)
 
   useFrame(() => {
     frameCount.current++
     const now = performance.now()
+    lastTime.current ??= now
     if (now - lastTime.current >= 500) {
       const delta = (now - lastTime.current) / 1000
       const currentFps = Math.round(frameCount.current / delta)
@@ -86,7 +93,7 @@ function FpsTracker({ onFpsUpdate }: { onFpsUpdate: (fps: number) => void }) {
   return null
 }
 
-interface Office3DCanvasProps {
+type Office3DCanvasProps = {
   readonly world: OfficeWorld
   readonly selectedEmployee: OfficeEmployee | null
   readonly selectedDesk?: { desk: OfficeDesk; zone: OfficeZone } | null
@@ -115,7 +122,6 @@ export const Office3DCanvas = memo(function Office3DCanvas({
   onFpsUpdate,
   onFallbackToDom
 }: Office3DCanvasProps) {
-
   const [isContextLost, setIsContextLost] = useState(false)
   const [viewPreset, setViewPreset] = useState<CampusViewPreset>('cinematic')
   const [focusZoneId, setFocusZoneId] = useState<CampusZoneId | null>(null)
@@ -142,10 +148,14 @@ export const Office3DCanvas = memo(function Office3DCanvas({
     const sync = (): void => {
       const visible = document.visibilityState === 'visible'
       setIsDocumentVisible(visible)
-      const state = r3fRef.current
-      if (visible && state) {
-        if (state.frameloop !== 'always') state.setFrameloop('always')
-        state.invalidate()
+      const root = r3fRef.current
+      if (visible && root) {
+        // onCreated hands us a creation-time snapshot; read the live store so the check sees the current frameloop.
+        const live = root.get()
+        if (live.frameloop !== 'always') {
+          live.setFrameloop('always')
+        }
+        live.invalidate()
       }
     }
     document.addEventListener('visibilitychange', sync)
@@ -160,7 +170,9 @@ export const Office3DCanvas = memo(function Office3DCanvas({
 
   // Dev preview: clearly synthetic activity, isolated from real Orca sessions.
   useEffect(() => {
-    if (!devPreview) return undefined
+    if (!devPreview) {
+      return undefined
+    }
     return startDevPreview(campusEventBus)
   }, [devPreview])
 
@@ -181,10 +193,12 @@ export const Office3DCanvas = memo(function Office3DCanvas({
         )}
         {/* Campus controls: view presets, zone fly-to, dev preview toggle. */}
         <div className="absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1.5 text-[11px]">
-          {([
-            ['cinematic', 'Cinematic'],
-            ['isometric', 'Isometric']
-          ] as const).map(([id, label]) => (
+          {(
+            [
+              ['cinematic', 'Cinematic'],
+              ['isometric', 'Isometric']
+            ] as const
+          ).map(([id, label]) => (
             <button
               key={id}
               type="button"

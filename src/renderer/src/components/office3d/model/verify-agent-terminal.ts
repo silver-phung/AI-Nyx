@@ -27,7 +27,7 @@ export type TerminalVerificationResult =
       readonly terminalInput: DashboardCardTerminalInput | null
     }
 
-export interface WorkspaceTabRef {
+export type WorkspaceTabRef = {
   readonly id: string
   readonly ptyId?: string | null
 }
