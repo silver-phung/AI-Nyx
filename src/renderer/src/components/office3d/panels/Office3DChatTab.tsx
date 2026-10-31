@@ -190,8 +190,8 @@ export function Office3DChatTab({
       </div>
 
       {/* Mode Switcher: Live Native Chat vs Conversation Summary */}
-      <div className="flex items-center justify-between pb-1 border-b border-border/40 shrink-0">
-        <div className="flex items-center bg-muted/50 p-0.5 rounded border border-border/50 text-[11px]">
+      <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/40 shrink-0">
+        <div className="flex shrink-0 items-center whitespace-nowrap bg-muted/50 p-0.5 rounded border border-border/50 text-[11px]">
           <button
             type="button"
             className={`flex items-center gap-1 px-2 py-0.5 rounded font-medium transition-colors ${
@@ -218,7 +218,12 @@ export function Office3DChatTab({
           </button>
         </div>
         {ptyIdForChat && (
-          <span className="text-[10px] font-mono text-muted-foreground">PTY: {ptyIdForChat}</span>
+          <span
+            className="min-w-0 truncate text-[10px] font-mono text-muted-foreground"
+            title={ptyIdForChat}
+          >
+            PTY: {ptyIdForChat}
+          </span>
         )}
       </div>
 
