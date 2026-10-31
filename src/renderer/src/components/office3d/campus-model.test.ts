@@ -21,6 +21,8 @@ import {
   deskStandPoint,
   podAisleZ,
   offsetPathEnd,
+  offsetPathLane,
+  laneForEmployee,
   reversePath,
   routeDeskToZone,
   routeZoneToZone,
@@ -560,5 +562,67 @@ describe('dev preview generator', () => {
     }
     expect(events.length).toBe(before)
     expect(started).toBeGreaterThan(1)
+  })
+})
+
+describe('walking lanes', () => {
+  it('separates agents sharing a route while keeping desk and station endpoints exact', () => {
+    const path = buildPath([
+      { x: 0, z: 0 },
+      { x: 0, z: 10 },
+      { x: 10, z: 10 }
+    ])
+    const lane = laneForEmployee('local::tab-a:leaf-1')
+    expect(Math.abs(lane.x)).toBeLessThanOrEqual(0.45)
+    expect(Math.abs(lane.z)).toBeLessThanOrEqual(0.45)
+    expect(laneForEmployee('local::tab-a:leaf-1')).toEqual(lane)
+    const shifted = offsetPathLane(path, { x: 0.3, z: -0.3 })
+    expect(shifted.points[0]).toEqual({ x: 0, z: 0 })
+    expect(shifted.points.at(-1)).toEqual({ x: 10, z: 10 })
+    expect(shifted.points[1]).toEqual({ x: 0.3, z: 9.7 })
+  })
+
+  it('gives different agents different lanes', () => {
+    const lanes = new Set(
+      Array.from({ length: 8 }, (_, i) => JSON.stringify(laneForEmployee(`local::tab-${i}:leaf`)))
+    )
+    expect(lanes.size).toBeGreaterThan(4)
+  })
+})
+
+describe('actor GPU cleanup', () => {
+  it('disposes the cloned skeleton (bone texture) when an actor is disposed', () => {
+    const bone = new THREE.Bone()
+    const geometry = new THREE.BoxGeometry()
+    const count = geometry.attributes.position.count
+    geometry.setAttribute(
+      'skinIndex',
+      new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4)
+    )
+    geometry.setAttribute(
+      'skinWeight',
+      new THREE.Float32BufferAttribute(
+        Float32Array.from({ length: count * 4 }, (_, i) => (i % 4 === 0 ? 1 : 0)),
+        4
+      )
+    )
+    const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshStandardMaterial())
+    mesh.add(bone)
+    mesh.bind(new THREE.Skeleton([bone]))
+    const scene = new THREE.Group()
+    scene.add(mesh)
+    const actor = createActor({ source: { scene, animations: [] }, kind: 'human', shadows: false })
+    const skeletons: THREE.Skeleton[] = []
+    actor.root.traverse((o) => {
+      if (o instanceof THREE.SkinnedMesh) {
+        skeletons.push(o.skeleton)
+      }
+    })
+    expect(skeletons).toHaveLength(1)
+    expect(skeletons[0]).not.toBe(mesh.skeleton)
+    let disposed = 0
+    skeletons[0].dispose = () => void disposed++
+    actor.dispose()
+    expect(disposed).toBe(1)
   })
 })

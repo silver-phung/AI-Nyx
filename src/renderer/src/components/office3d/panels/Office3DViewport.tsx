@@ -68,10 +68,12 @@ export function Office3DViewport({
         />
       </Suspense>
 
-      {/* Floating Instructions Pill */}
-      <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-[11px] text-slate-300 pointer-events-none select-none shadow-md">
+      {/* Floating Instructions Pill (bottom: the campus camera toolbar owns the top-left corner) */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex max-w-[calc(100%-1.5rem)] items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-[11px] text-slate-300 pointer-events-none select-none shadow-md">
         <Sparkles className="size-3 text-primary animate-pulse" />
-        <span>Click any 3D agent character to select Chat & Terminal. Double-click to open.</span>
+        <span className="truncate">
+          Click any 3D agent character to select Chat & Terminal. Double-click to open.
+        </span>
       </div>
 
       {/* Selected agent active indicator chip (top right) */}

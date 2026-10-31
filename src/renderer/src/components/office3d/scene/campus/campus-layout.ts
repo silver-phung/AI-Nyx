@@ -1,7 +1,7 @@
 // Moonlight Campus layout: pure data + path math. No three.js, no React, no Orca imports.
 // Units are metres, y is up, +x is east, +z is south (towards the default camera).
 
-export interface CampusPoint {
+export type CampusPoint = {
   readonly x: number
   readonly z: number
 }
@@ -15,7 +15,7 @@ export type CampusZoneId =
   | 'meeting-area'
   | 'waiting-garden'
 
-export interface CampusZoneDef {
+export type CampusZoneDef = {
   readonly id: CampusZoneId
   readonly label: string
   readonly subtitle: string
@@ -73,11 +73,32 @@ function ringZone(
 
 export const CAMPUS_ZONES: Readonly<Record<Exclude<CampusZoneId, 'coding-studio'>, CampusZoneDef>> =
   {
-    'waiting-garden': ringZone('waiting-garden', 'Waiting Garden', 'Idle agents', 0x5eead4, -150, 2.6),
-    'review-pavilion': ringZone('review-pavilion', 'Review Pavilion', 'Code review', 0xfbbf24, -90, 1.9),
+    'waiting-garden': ringZone(
+      'waiting-garden',
+      'Waiting Garden',
+      'Idle agents',
+      0x5eead4,
+      -150,
+      2.6
+    ),
+    'review-pavilion': ringZone(
+      'review-pavilion',
+      'Review Pavilion',
+      'Code review',
+      0xfbbf24,
+      -90,
+      1.9
+    ),
     'testing-lab': ringZone('testing-lab', 'Testing Lab', 'Automated tests', 0x2dd4bf, -30, 2.7),
     'git-station': ringZone('git-station', 'Git Station', 'Commits & pushes', 0xfb923c, 30, 2.3),
-    'deployment-center': ringZone('deployment-center', 'Deployment Center', 'Releases', 0xa78bfa, 90, 2.6),
+    'deployment-center': ringZone(
+      'deployment-center',
+      'Deployment Center',
+      'Releases',
+      0xa78bfa,
+      90,
+      2.6
+    ),
     'meeting-area': ringZone('meeting-area', 'Meeting Area', 'Collaboration', 0xf472b6, 150, 1.9)
   }
 
@@ -94,10 +115,7 @@ export const STUDIO_ZONE: CampusZoneDef = {
   spotYaw: -Math.PI / 2
 }
 
-export const ALL_ZONE_DEFS: readonly CampusZoneDef[] = [
-  STUDIO_ZONE,
-  ...Object.values(CAMPUS_ZONES)
-]
+export const ALL_ZONE_DEFS: readonly CampusZoneDef[] = [STUDIO_ZONE, ...Object.values(CAMPUS_ZONES)]
 
 export function getZoneDef(id: CampusZoneId): CampusZoneDef {
   return id === 'coding-studio' ? STUDIO_ZONE : CAMPUS_ZONES[id]
@@ -111,7 +129,12 @@ export function studioDepth(podRows: number): number {
 /** Overall campus bounds used for ground, fog and camera framing. */
 export function campusBounds(podRows: number): { x0: number; x1: number; z0: number; z1: number } {
   const z1 = Math.max(CAMPUS_HUB.z + RING_RADIUS + 9, studioDepth(podRows) + 4)
-  return { x0: STUDIO_X0 - 6, x1: CAMPUS_HUB.x + RING_RADIUS + 9, z0: CAMPUS_HUB.z - RING_RADIUS - 9, z1 }
+  return {
+    x0: STUDIO_X0 - 6,
+    x1: CAMPUS_HUB.x + RING_RADIUS + 9,
+    z0: CAMPUS_HUB.z - RING_RADIUS - 9,
+    z1
+  }
 }
 
 /** Standing point for an agent leaving a desk, in the pod's central aisle. */
@@ -136,7 +159,7 @@ export function podAisleZ(podCenter: CampusPoint, banks: number): number {
   return podCenter.z + Math.max(1, banks) * 2 * POD_GRID_STEP + 0.8
 }
 
-export interface CampusPath {
+export type CampusPath = {
   readonly points: readonly CampusPoint[]
   readonly cumulative: readonly number[]
   readonly length: number
@@ -145,23 +168,26 @@ export interface CampusPath {
 export function buildPath(points: readonly CampusPoint[]): CampusPath {
   const cleaned: CampusPoint[] = []
   for (const p of points) {
-    const last = cleaned[cleaned.length - 1]
-    if (!last || Math.hypot(p.x - last.x, p.z - last.z) > 1e-4) cleaned.push(p)
+    const last = cleaned.at(-1)
+    if (!last || Math.hypot(p.x - last.x, p.z - last.z) > 1e-4) {
+      cleaned.push(p)
+    }
   }
   const cumulative: number[] = [0]
   for (let i = 1; i < cleaned.length; i++) {
     cumulative.push(
-      cumulative[i - 1] + Math.hypot(cleaned[i].x - cleaned[i - 1].x, cleaned[i].z - cleaned[i - 1].z)
+      cumulative[i - 1] +
+        Math.hypot(cleaned[i].x - cleaned[i - 1].x, cleaned[i].z - cleaned[i - 1].z)
     )
   }
-  return { points: cleaned, cumulative, length: cumulative[cumulative.length - 1] ?? 0 }
+  return { points: cleaned, cumulative, length: cumulative.at(-1) ?? 0 }
 }
 
 export function reversePath(path: CampusPath): CampusPath {
-  return buildPath([...path.points].reverse())
+  return buildPath(path.points.toReversed())
 }
 
-export interface PathSample {
+export type PathSample = {
   readonly x: number
   readonly z: number
   /** Yaw (radians) of travel direction, three.js convention: atan2(dx, dz). */
@@ -170,11 +196,17 @@ export interface PathSample {
 
 export function samplePath(path: CampusPath, distance: number): PathSample {
   const pts = path.points
-  if (pts.length === 0) return { x: 0, z: 0, yaw: 0 }
-  if (pts.length === 1) return { x: pts[0].x, z: pts[0].z, yaw: 0 }
+  if (pts.length === 0) {
+    return { x: 0, z: 0, yaw: 0 }
+  }
+  if (pts.length === 1) {
+    return { x: pts[0].x, z: pts[0].z, yaw: 0 }
+  }
   const d = Math.min(Math.max(distance, 0), path.length)
   let i = 1
-  while (i < pts.length - 1 && path.cumulative[i] < d) i++
+  while (i < pts.length - 1 && path.cumulative[i] < d) {
+    i++
+  }
   const a = pts[i - 1]
   const b = pts[i]
   const segLen = path.cumulative[i] - path.cumulative[i - 1] || 1
@@ -191,18 +223,46 @@ export function samplePath(path: CampusPath, distance: number): PathSample {
  * slot 0 centre, then alternating right/left in 1.1 m steps along the spoke's perpendicular.
  */
 export function slotOffset(zone: CampusZoneDef, slot: number): CampusPoint {
-  if (zone.id === 'coding-studio' || slot <= 0) return { x: 0, z: 0 }
+  if (zone.id === 'coding-studio' || slot <= 0) {
+    return { x: 0, z: 0 }
+  }
   const step = Math.ceil(slot / 2) * 1.1 * (slot % 2 === 1 ? 1 : -1)
   return { x: -Math.sin(zone.spokeAngle) * step, z: Math.cos(zone.spokeAngle) * step }
 }
 
 /** Same path with its final point moved by `offset` (used for station slots). */
 export function offsetPathEnd(path: CampusPath, offset: CampusPoint): CampusPath {
-  if (offset.x === 0 && offset.z === 0 && path.points.length > 0) return path
+  if (offset.x === 0 && offset.z === 0 && path.points.length > 0) {
+    return path
+  }
   const pts = [...path.points]
-  const last = pts[pts.length - 1]
-  if (last) pts[pts.length - 1] = { x: last.x + offset.x, z: last.z + offset.z }
+  const last = pts.at(-1)
+  if (last) {
+    pts[pts.length - 1] = { x: last.x + offset.x, z: last.z + offset.z }
+  }
   return buildPath(pts)
+}
+
+/** Shifts the walk between the endpoints so agents sharing a route do not overlap; endpoints stay put. */
+export function offsetPathLane(path: CampusPath, lane: CampusPoint): CampusPath {
+  if ((lane.x === 0 && lane.z === 0) || path.points.length < 3) {
+    return path
+  }
+  const last = path.points.length - 1
+  return buildPath(
+    path.points.map((p, i) => (i === 0 || i === last ? p : { x: p.x + lane.x, z: p.z + lane.z }))
+  )
+}
+
+/** Stable per-agent lane offset in [-0.45, 0.45] on both axes. */
+export function laneForEmployee(employeeId: string): CampusPoint {
+  let h = 2166136261
+  for (let i = 0; i < employeeId.length; i++) {
+    h = Math.imul(h ^ employeeId.charCodeAt(i), 16777619)
+  }
+  const ax = ((h >>> 0) % 7) - 3
+  const az = ((h >>> 8) % 7) - 3
+  return { x: ax * 0.15, z: az * 0.15 }
 }
 
 /** Route from a pod standing point to a campus zone's working spot. */
@@ -225,7 +285,9 @@ export function routeDeskToZone(
 }
 
 export function routeZoneToZone(from: CampusZoneDef, to: CampusZoneDef): CampusPath {
-  if (from.id === to.id) return buildPath([from.spot])
+  if (from.id === to.id) {
+    return buildPath([from.spot])
+  }
   const pts: CampusPoint[] = [from.spot, from.gate, from.hubEdge]
   pts.push(to.hubEdge, to.gate, to.spot)
   return buildPath(pts)

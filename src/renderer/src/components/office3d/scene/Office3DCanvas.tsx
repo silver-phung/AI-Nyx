@@ -195,7 +195,7 @@ export const Office3DCanvas = memo(function Office3DCanvas({
           </div>
         )}
         {/* Campus controls: view presets, zone fly-to, dev preview toggle. */}
-        <div className="absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1.5 text-[11px]">
+        <div className="absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none text-[11px]">
           {(
             [
               ['cinematic', 'Cinematic'],
@@ -206,7 +206,7 @@ export const Office3DCanvas = memo(function Office3DCanvas({
               key={id}
               type="button"
               data-testid={`campus-view-${id}`}
-              className={`rounded-full border px-2.5 py-1 backdrop-blur-md transition-colors ${
+              className={`shrink-0 rounded-full border px-2.5 py-1 backdrop-blur-md transition-colors ${
                 viewPreset === id && focusZoneId === null
                   ? 'border-indigo-300/70 bg-indigo-500/30 text-white'
                   : 'border-slate-600/60 bg-slate-950/70 text-slate-200 hover:bg-slate-800/80'
@@ -220,13 +220,13 @@ export const Office3DCanvas = memo(function Office3DCanvas({
               {label}
             </button>
           ))}
-          <span className="mx-1 h-4 w-px bg-slate-600/60" />
+          <span className="mx-1 h-4 w-px shrink-0 bg-slate-600/60" />
           {[STUDIO_ZONE, ...Object.values(CAMPUS_ZONES)].map((zone) => (
             <button
               key={zone.id}
               type="button"
               data-testid={`campus-zone-${zone.id}`}
-              className={`rounded-full border px-2.5 py-1 backdrop-blur-md transition-colors ${
+              className={`shrink-0 rounded-full border px-2.5 py-1 backdrop-blur-md transition-colors ${
                 focusZoneId === zone.id
                   ? 'border-white/60 bg-white/15 text-white'
                   : 'border-slate-600/60 bg-slate-950/70 text-slate-200 hover:bg-slate-800/80'

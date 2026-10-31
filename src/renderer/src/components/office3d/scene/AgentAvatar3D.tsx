@@ -12,7 +12,7 @@ import { OFFICE_MODELS } from './OfficeAssetRegistry'
 import { humanModelUrl, isRobotAgent, SEAT_LIFT_HUMAN, SEAT_LIFT_ROBOT } from './agent-appearance'
 import { campusPresence } from './campus/campus-events'
 
-interface AgentAvatar3DProps {
+type AgentAvatar3DProps = {
   readonly employee: OfficeEmployee
   readonly isSelected: boolean
   readonly onSelect: (employee: OfficeEmployee) => void
@@ -47,7 +47,9 @@ export const AgentAvatar3D = memo(function AgentAvatar3D({
   )
 
   const modelUrl = useMemo(() => {
-    if (isRobot) return OFFICE_MODELS.robot
+    if (isRobot) {
+      return OFFICE_MODELS.robot
+    }
     return humanModelUrl(employee.employeeId)
   }, [isRobot, employee.employeeId])
 
@@ -57,13 +59,14 @@ export const AgentAvatar3D = memo(function AgentAvatar3D({
   const outfitColor = getAgentColorByType(employee.agentType ?? 'codex')
 
   // Clone skinned skeleton cleanly per employee
-  const { scene, scale, sitLift } = useMemo(() => {
+  const { scene, scale, sitLift, ownedMaterials } = useMemo(() => {
     const s = cloneSkinned(gltf.scene) as THREE.Group
+    const owned: THREE.Material[] = []
     const box = new THREE.Box3().setFromObject(gltf.scene)
     const h = box.max.y - box.min.y || 1
 
-    let sc = 1.0
-    let lift = 0.0
+    let sc = 1
+    let lift = 0
 
     if (isRobot) {
       sc = 1.25 / h
@@ -75,7 +78,9 @@ export const AgentAvatar3D = memo(function AgentAvatar3D({
 
     s.traverse((o) => {
       const mesh = o as THREE.Mesh
-      if (!mesh.isMesh) return
+      if (!mesh.isMesh) {
+        return
+      }
       mesh.castShadow = shadows
       mesh.receiveShadow = shadows
       mesh.frustumCulled = false
@@ -86,23 +91,44 @@ export const AgentAvatar3D = memo(function AgentAvatar3D({
           mat.color = new THREE.Color(outfitColor)
         }
         mesh.material = mat
+        owned.push(mat)
       }
     })
 
-    return { scene: s, scale: sc, sitLift: lift }
+    return { scene: s, scale: sc, sitLift: lift, ownedMaterials: owned }
   }, [gltf.scene, isRobot, outfitColor, shadows])
+
+  // A clone is rebuilt on every quality/color change; free its bone textures and tinted materials.
+  useEffect(
+    () => () => {
+      scene.traverse((o) => {
+        if (o instanceof THREE.SkinnedMesh) {
+          o.skeleton.dispose()
+        }
+      })
+      for (const m of ownedMaterials) {
+        m.dispose()
+      }
+    },
+    [scene, ownedMaterials]
+  )
 
   // Setup AnimationMixer
   const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene])
 
   useEffect(() => {
-    if (!gltf.animations || gltf.animations.length === 0) return
+    if (!gltf.animations || gltf.animations.length === 0) {
+      return
+    }
 
     // Find the best sitting animation
     const clipNames = gltf.animations.map((a) => a.name)
     const sitClipName = isRobot
-      ? clipNames.find((n) => n.toLowerCase().includes('sitting') || n.toLowerCase().includes('sit')) ?? 'Idle'
-      : clipNames.find((n) => n.toLowerCase() === 'sit' || n.toLowerCase().includes('sit')) ?? 'idle'
+      ? (clipNames.find(
+          (n) => n.toLowerCase().includes('sitting') || n.toLowerCase().includes('sit')
+        ) ?? 'Idle')
+      : (clipNames.find((n) => n.toLowerCase() === 'sit' || n.toLowerCase().includes('sit')) ??
+        'idle')
 
     const targetClip = gltf.animations.find((a) => a.name === sitClipName) || gltf.animations[0]
     if (targetClip) {
@@ -122,7 +148,7 @@ export const AgentAvatar3D = memo(function AgentAvatar3D({
     if (haloRef.current) {
       haloRef.current.rotation.y += delta * 1.5
       const pulse = employee.displayState === 'working' ? Math.sin(Date.now() * 0.006) * 0.12 : 0
-      const scaleBase = isSelected || hovered ? 1.3 : 1.0
+      const scaleBase = isSelected || hovered ? 1.3 : 1
       haloRef.current.scale.setScalar(scaleBase + pulse)
     }
   })
@@ -140,10 +166,14 @@ export const AgentAvatar3D = memo(function AgentAvatar3D({
 
   // Clear hover when hidden so the pointer cursor cannot get stuck.
   useEffect(() => {
-    if (isAway) setHovered(false)
+    if (isAway) {
+      setHovered(false)
+    }
   }, [isAway])
 
-  if (isAway) return null
+  if (isAway) {
+    return null
+  }
 
   return (
     <group

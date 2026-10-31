@@ -14,7 +14,7 @@ export type ActorClipRole =
   | 'handoff'
 
 /** The parts of a loaded GLTF an actor needs (what drei's useGLTF returns). */
-export interface ActorSource {
+export type ActorSource = {
   readonly scene: THREE.Object3D
   readonly animations: readonly THREE.AnimationClip[]
 }
@@ -42,7 +42,7 @@ const CLIP_CANDIDATES: Record<ActorModelKind, Record<ActorClipRole, readonly str
   }
 }
 
-export interface Actor {
+export type Actor = {
   /** Place this in the scene. Position = feet, rotation.y = facing. */
   readonly root: THREE.Group
   readonly kind: ActorModelKind
@@ -55,7 +55,7 @@ export interface Actor {
   dispose(): void
 }
 
-export interface ActorOptions {
+export type ActorOptions = {
   readonly source: ActorSource
   readonly kind: ActorModelKind
   /** Tint for robot "Main" materials (agent colour). */
@@ -70,7 +70,9 @@ function findClip(
 ): THREE.AnimationClip | undefined {
   for (const n of names) {
     const hit = clips.find((c) => c.name.toLowerCase() === n.toLowerCase())
-    if (hit) return hit
+    if (hit) {
+      return hit
+    }
   }
   return clips[0]
 }
@@ -90,7 +92,9 @@ export function createActor(options: ActorOptions): Actor {
   const ownedMaterials: THREE.Material[] = []
   model.traverse((o) => {
     const mesh = o as THREE.Mesh
-    if (!mesh.isMesh) return
+    if (!mesh.isMesh) {
+      return
+    }
     mesh.castShadow = options.shadows ?? true
     mesh.receiveShadow = options.shadows ?? true
     mesh.frustumCulled = false
@@ -111,9 +115,13 @@ export function createActor(options: ActorOptions): Actor {
   let currentRole: ActorClipRole | null = null
 
   function setClip(role: ActorClipRole, fade = 0.25): void {
-    if (currentRole === role) return
+    if (currentRole === role) {
+      return
+    }
     const clip = findClip(source.animations, CLIP_CANDIDATES[kind][role])
-    if (!clip) return
+    if (!clip) {
+      return
+    }
     let action = actions.get(role)
     if (!action) {
       action = mixer.clipAction(clip)
@@ -127,7 +135,7 @@ export function createActor(options: ActorOptions): Actor {
 
   // glowing code package carried in front of the chest
   const pkg = new THREE.Group()
-  pkg.position.set(0, 1.0, 0.42)
+  pkg.position.set(0, 1, 0.42)
   pkg.visible = false
   const cube = new THREE.Mesh(
     bag.geo(new THREE.BoxGeometry(0.3, 0.3, 0.3)),
@@ -170,7 +178,7 @@ export function createActor(options: ActorOptions): Actor {
     })
   )
   const ring = new THREE.Mesh(bag.geo(new THREE.TorusGeometry(0.16, 0.03, 10, 24)), statusMat)
-  ring.position.y = (kind === 'robot' ? 1.5 : 1.95)
+  ring.position.y = kind === 'robot' ? 1.5 : 1.95
   ring.rotation.x = Math.PI / 5
   root.add(ring)
 
@@ -199,7 +207,7 @@ export function createActor(options: ActorOptions): Actor {
       mixer.update(dt)
       ring.rotation.y += dt * 1.6
       if (pkg.visible) {
-        pkg.position.y = 1.0 + Math.sin(t * 6) * 0.025
+        pkg.position.y = 1 + Math.sin(t * 6) * 0.025
         cube.rotation.y = t * 1.8
         cube.rotation.x = t * 1.1
         halo.material.opacity = 0.7 + Math.sin(t * 5) * 0.15
@@ -208,7 +216,15 @@ export function createActor(options: ActorOptions): Actor {
     dispose() {
       mixer.stopAllAction()
       mixer.uncacheRoot(model)
-      for (const m of ownedMaterials) m.dispose()
+      for (const m of ownedMaterials) {
+        m.dispose()
+      }
+      // Each skinned clone owns a skeleton whose bone texture lives on the GPU until disposed.
+      model.traverse((o) => {
+        if (o instanceof THREE.SkinnedMesh) {
+          o.skeleton.dispose()
+        }
+      })
       bag.dispose()
       root.clear()
     }

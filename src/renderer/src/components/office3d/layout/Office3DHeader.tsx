@@ -23,8 +23,8 @@ export function Office3DHeader({
   onClose
 }: Office3DHeaderProps): React.JSX.Element {
   return (
-    <header className="flex items-center justify-between px-4 py-2 border-b border-border/60 bg-card/70 shrink-0 h-12">
-      <div className="flex items-center gap-3">
+    <header className="flex items-center justify-between gap-3 px-4 py-2 border-b border-border/60 bg-card/70 shrink-0 h-12 whitespace-nowrap">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
           <Building2 className="size-5" />
         </div>
@@ -32,21 +32,21 @@ export function Office3DHeader({
           <h1 className="text-sm font-bold tracking-tight text-foreground">
             {translate('auto.components.office3d.title', 'Office 3D')}
           </h1>
-          <Badge variant="secondary" className="text-[10px] py-0">
+          <Badge variant="secondary" className="text-[10px] py-0 hidden xl:inline-flex">
             {hasWebGL && activeTab === '3d'
               ? 'Moonlight Campus Preview'
               : translate('auto.components.office3d.badgeFoundation', 'M1 Foundation')}
           </Badge>
           <Badge
             variant="outline"
-            className="border-primary/50 text-primary text-[10px] py-0 hidden sm:inline-flex"
+            className="border-primary/50 text-primary text-[10px] py-0 hidden 2xl:inline-flex"
           >
             Pantheon-inspired 3D
           </Badge>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {hasWebGL && (
           <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/50 text-xs mr-2">
             <button

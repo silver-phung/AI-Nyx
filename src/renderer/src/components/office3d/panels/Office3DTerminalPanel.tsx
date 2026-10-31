@@ -75,8 +75,8 @@ export function Office3DTerminalPanel({
         data-testid="office3d-terminal-panel"
       >
         {/* Bottom Tab Bar */}
-        <div className="flex items-center justify-between px-3 h-9 border-b border-border/50 bg-muted/30 shrink-0 text-xs">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between gap-2 px-3 h-9 border-b border-border/50 bg-muted/30 shrink-0 text-xs whitespace-nowrap">
+          <div className="flex min-w-0 items-center gap-1 overflow-x-auto scrollbar-none">
             <button
               type="button"
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm font-medium transition-colors ${

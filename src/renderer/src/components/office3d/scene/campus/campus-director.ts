@@ -4,7 +4,9 @@ import type { Campus } from './build-campus'
 import { zoneForActivity, type CampusActivityEvent } from './campus-events'
 import {
   getZoneDef,
+  laneForEmployee,
   offsetPathEnd,
+  offsetPathLane,
   slotOffset,
   type CampusPath,
   type CampusZoneId,
@@ -225,7 +227,10 @@ export class CampusDirector {
       actor,
       zone,
       zoneDef,
-      outPath: offsetPathEnd(info.route(zoneDef), slotOffset(zoneDef, slot)),
+      outPath: offsetPathEnd(
+        offsetPathLane(info.route(zoneDef), laneForEmployee(event.employeeId)),
+        slotOffset(zoneDef, slot)
+      ),
       seat: info.seat,
       seatYaw: info.seatYaw,
       seatLift: info.seatLift,
