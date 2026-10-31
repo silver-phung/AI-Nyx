@@ -17,6 +17,7 @@ import { DEFAULT_SETUP_AGENT_STARTUP_POLICY } from './setup-agent-startup-policy
 import { DEFAULT_BROWSER_PAGE_ZOOM_LEVEL } from './browser-page-zoom'
 import { getDefaultNotificationSettings } from './notification-settings-defaults'
 import { getDefaultOnboardingState } from './onboarding-defaults'
+import { PRODUCT_IDENTITY } from './product-identity'
 import {
   defaultTerminalFontFamily,
   getDefaultPrimarySelectionMiddleClickPaste,
@@ -88,7 +89,7 @@ export function getDefaultWorkspaceDir(homeDir: string): string {
 }
 
 export function getDefaultSettings(homedir: string): GlobalSettings {
-  return buildDefaultSettings({
+  const settings = buildDefaultSettings({
     workspaceDir: getDefaultWorkspaceDir(homedir),
     appFontFamily: DEFAULT_APP_FONT_FAMILY,
     editorAutoSaveDelayMs: DEFAULT_EDITOR_AUTO_SAVE_DELAY_MS,
@@ -102,6 +103,8 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
 
     voice: getDefaultVoiceSettings()
   })
+  // AI-Nyx ships Moonlight Campus as its headline view; Orca keeps it opt-in.
+  return PRODUCT_IDENTITY.id === 'orca' ? settings : { ...settings, enableOffice3D: true }
 }
 
 export function getDefaultVoiceSettings(): VoiceSettings {

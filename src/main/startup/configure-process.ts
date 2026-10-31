@@ -11,6 +11,7 @@ import { readHttp1CompatibilityMarker } from './http1-compatibility-marker'
 import { checkServeUserDataPath } from './serve-user-data-path-guard'
 import { stampRuntimeSourceEnv } from '../../shared/runtime-source-env'
 import { isLinuxWaylandSession } from '../../shared/linux-wayland-session'
+import { PRODUCT_IDENTITY } from '../../shared/product-identity'
 import {
   hasMissingProfileStateDatabaseWithRetainedAuthority,
   readActiveProfileId,
@@ -197,6 +198,10 @@ export function configureDevUserDataPath(isDev: boolean): void {
   }
 
   if (!isDev) {
+    if (PRODUCT_IDENTITY.id !== 'orca') {
+      // Electron derives the default profile from package metadata; never let a side-by-side product land in Orca's.
+      app.setPath('userData', join(app.getPath('appData'), PRODUCT_IDENTITY.productName))
+    }
     return
   }
   const overrideUserDataPath = process.env.ORCA_DEV_USER_DATA_PATH
@@ -229,6 +234,10 @@ export function configureOrcaUserDataPathEnv(): void {
   }
   // Canonicalize stale inherited profile overrides before CLI modules derive runtime-home paths.
   process.env.ORCA_USER_DATA_PATH = userDataPath
+  // CLI and daemon children are built without the identity define; carry it so they resolve the same home.
+  if (PRODUCT_IDENTITY.id !== 'orca') {
+    process.env.ORCA_APP_IDENTITY = PRODUCT_IDENTITY.id
+  }
   // An Orca launched from another Orca terminal must own its CLI children.
   stampRuntimeSourceEnv(process.env, null)
 }

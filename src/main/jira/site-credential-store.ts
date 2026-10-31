@@ -8,6 +8,7 @@ import type { JiraSite, JiraSiteSelection } from '../../shared/jira/jira-types'
 import { createIntegrationStateFileCache } from '../integration-state-file-cache'
 import { isJiraGatewayBaseUrl } from './gateway-base-url'
 import { createIntegrationTokenFileCache } from '../integration-token-file-cache'
+import { productHomeDirName } from '../../shared/product-identity'
 
 export type JiraSiteFile = {
   version: 1
@@ -27,7 +28,7 @@ export function getCredentialError(siteId: string): string | undefined {
 }
 
 function getOrcaDir(): string {
-  return join(homedir(), '.orca')
+  return join(homedir(), productHomeDirName())
 }
 
 function getSiteFilePath(): string {

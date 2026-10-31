@@ -11,6 +11,7 @@ import {
 import type { BitbucketAuthMode } from '../../shared/bitbucket-credentials'
 import { readCredentialFileProtection } from '../credential-file-protection'
 import type { SecretAtRestProtection } from '../../shared/secret-at-rest-protection'
+import { productHomeDirName } from '../../shared/product-identity'
 
 // Plaintext display metadata lets status reads avoid keychain prompts.
 export type BitbucketStoredMetadata = {
@@ -46,7 +47,7 @@ let cachedSecret: BitbucketStoredSecret | null = null
 let credentialError: string | null = null
 
 function getOrcaDir(): string {
-  return join(homedir(), '.orca')
+  return join(homedir(), productHomeDirName())
 }
 
 function getMetadataPath(): string {

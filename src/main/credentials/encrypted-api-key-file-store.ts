@@ -9,6 +9,7 @@ import {
 } from '../../shared/secure-file'
 import type { SecretAtRestProtection } from '../../shared/secret-at-rest-protection'
 import { ApiKeyFileUnreadableError } from './api-key-file-unreadable-error'
+import { productHomeDirName } from '../../shared/product-identity'
 
 type EncryptedApiKeyFileStore = {
   /** Envelope location and prefix used by orcad's plaintext migration. */
@@ -40,7 +41,7 @@ export function createEncryptedApiKeyFileStore({
   }
 
   function getOrcaDir(): string {
-    return join(homedir(), '.orca')
+    return join(homedir(), productHomeDirName())
   }
 
   function getApiKeyPath(): string {

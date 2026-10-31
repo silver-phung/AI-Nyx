@@ -70,6 +70,7 @@ const {
 } = require('./scripts/appimage-node-runtime.cjs')
 const { signWindowsUninstallerViaSignPath } = require('./scripts/windows-uninstaller-signing.cjs')
 const { buildMacShipItScheduling } = require('./scripts/macos-shipit-scheduling.cjs')
+const { resolveProductIdentity } = require('./product-identity.cjs')
 
 // Dev channels need release bundle ID/signature/notarization so Squirrel.Mac accepts updates and macOS retains app identity.
 const isMacHourly = process.env.ORCA_MAC_HOURLY === '1'
@@ -102,7 +103,10 @@ const devChannelRepo = isHourlyChannel
     : isAdhocChannel
       ? 'orca-adhoc'
       : null
-const appId = 'com.stablyai.orca'
+// ORCA_APP_IDENTITY=ai-nyx packages a side-by-side product that shares nothing installable with Orca.
+const productIdentity = resolveProductIdentity()
+const isOrcaProduct = productIdentity.id === 'orca'
+const appId = productIdentity.appUserModelId
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
   to: 'onboarding/feature-wall'
@@ -233,17 +237,23 @@ const macUsageDescriptions = {
 // Developer ID team that signs every release-channel mac build.
 const ORCA_MAC_TEAM_ID = '6CX3WHS9HZ'
 
+const extraMetadata = {
+  ...(devChannelBuildVersion
+    ? { version: devChannelBuildVersion }
+    : localBuildVersion
+      ? { version: localBuildVersion }
+      : {}),
+  // One-click per-user NSIS installs into LOCALAPPDATA/Programs/<package name>; Orca's "orca" would share its folder.
+  ...(isOrcaProduct ? {} : { name: productIdentity.productName })
+}
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
-  productName: 'Orca',
-  protocols: [{ name: 'Orca', schemes: ['orca'] }],
+  productName: productIdentity.productName,
+  protocols: [{ name: productIdentity.productName, schemes: [productIdentity.protocolScheme] }],
   toolsets: { appimage: '1.0.3' },
-  ...(devChannelBuildVersion
-    ? { extraMetadata: { version: devChannelBuildVersion } }
-    : localBuildVersion
-      ? { extraMetadata: { version: localBuildVersion } }
-      : {}),
+  ...(Object.keys(extraMetadata).length > 0 ? { extraMetadata } : {}),
   directories: {
     buildResources: 'resources/build'
   },
@@ -507,7 +517,7 @@ module.exports = {
     }
   },
   win: {
-    executableName: 'Orca',
+    executableName: productIdentity.executableName,
     // SignPath signs Windows installers after packaging, so set release publisherName explicitly.
     // Unsigned dev channels omit it or updater signature checks reject dev updates and return to stable.
     // Sign hook signs nothing: it relays transient NSIS uninstaller files to CI SignPath; unset relay env leaves local/dev builds inert.
@@ -550,7 +560,7 @@ module.exports = {
     ]
   },
   nsis: {
-    artifactName: 'orca-windows-setup.${ext}',
+    artifactName: `${productIdentity.id}-windows-setup.\${ext}`,
     shortcutName: '${productName}',
     uninstallDisplayName: '${productName}',
     createDesktopShortcut: 'always',
@@ -730,13 +740,16 @@ module.exports = {
   // Dual-arch builds need target node-pty rebuilds or Intel Macs get arm64 binaries and posix_spawnp failure.
   // beforeBuild performs targeted rebuild then returns false to skip optional cpu-features.
   npmRebuild: true,
-  publish: {
-    provider: 'github',
-    owner: 'stablyai',
-    repo: devChannelRepo ?? 'orca',
-    // Keep main-repo releases draft until release-cut verifies all assets; early --publish always would expose missing Windows installers.
-    releaseType: devChannelRepo ? 'prerelease' : 'draft'
-  }
+  // Side-by-side products have no release feed, so no app-update.yml can point them at Orca's releases.
+  publish: isOrcaProduct
+    ? {
+        provider: 'github',
+        owner: 'stablyai',
+        repo: devChannelRepo ?? 'orca',
+        // Keep main-repo releases draft until release-cut verifies all assets; early --publish always would expose missing Windows installers.
+        releaseType: devChannelRepo ? 'prerelease' : 'draft'
+      }
+    : null
 }
 
 // Stamp the effective channel version where node-mode CLI code can read it.

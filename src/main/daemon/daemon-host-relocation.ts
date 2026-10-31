@@ -27,6 +27,7 @@ import {
 import { parseDaemonPidFile } from './daemon-pid-file-parse'
 import { quarantineCorruptDaemonPidRecord } from './daemon-pid-record-quarantine'
 import { inspectProcessLiveness, mergeProcessLivenessVerdict } from './daemon-process-inspection'
+import { PRODUCT_IDENTITY } from '../../shared/product-identity'
 
 // Copy the Electron runtime outside NSIS's install-directory kill zone; failures fall back to the install runtime.
 
@@ -66,7 +67,7 @@ function currentBuildFingerprint(
 }
 
 // Keep runtimes out of roaming storage; match the NSIS uninstall root in config/nsis/orca-installer-hooks.nsh.
-const LOCAL_HOST_ROOT_NAME = 'Orca'
+const LOCAL_HOST_ROOT_NAME = PRODUCT_IDENTITY.productName
 
 // Match getDaemonEntryPath() so relocation copies the same entry the install runtime would fork.
 function resolveEntrySourcePath(resourcesPath: string, observedEntryPath?: string): string {

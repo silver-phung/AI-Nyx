@@ -36,6 +36,10 @@ const ORCA_BUILD_IDENTITY_LITERAL =
   orcaBuildIdentity === 'stable' || orcaBuildIdentity === 'rc'
     ? JSON.stringify(orcaBuildIdentity)
     : 'null'
+// Product identity for side-by-side builds (src/shared/app-identity.ts); unset keeps Orca.
+const ORCA_APP_IDENTITY_LITERAL = process.env.ORCA_APP_IDENTITY
+  ? JSON.stringify(process.env.ORCA_APP_IDENTITY)
+  : 'null'
 const orcaPostHogWriteKey = process.env.ORCA_POSTHOG_WRITE_KEY
 const ORCA_POSTHOG_WRITE_KEY_LITERAL =
   typeof orcaPostHogWriteKey === 'string' && orcaPostHogWriteKey.length > 0
@@ -234,6 +238,7 @@ export const electronViteConfig: UserConfig = {
     },
     define: {
       ORCA_BUILD_IDENTITY: ORCA_BUILD_IDENTITY_LITERAL,
+      ORCA_APP_IDENTITY: ORCA_APP_IDENTITY_LITERAL,
       ORCA_POSTHOG_WRITE_KEY: ORCA_POSTHOG_WRITE_KEY_LITERAL,
       ORCA_DIAGNOSTICS_TOKEN_URL: ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL,
       ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,

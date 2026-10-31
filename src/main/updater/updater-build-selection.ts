@@ -14,6 +14,7 @@ import { profileStateBuildCompatibilityError } from '../../shared/profile-state-
 import { listReleaseBuilds, resolveTargetBuild } from '../updater-release-builds'
 import { ReleaseBuildListCache, type ReleaseBuildListOptions } from '../updater-release-build-cache'
 import { UpdaterMenuChecks } from './updater-menu-checks'
+import { isAutoUpdateAvailable } from './updater-availability'
 
 export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
   private readonly releaseBuildCache = new ReleaseBuildListCache((channel) =>
@@ -88,7 +89,7 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
 
   /** Pin any published channel/tag, including deliberate downgrades. */
   protected async checkForPinnedBuild(channel: ReleaseChannel, tag: string): Promise<void> {
-    if (!app.isPackaged) {
+    if (!isAutoUpdateAvailable()) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
       return
     }

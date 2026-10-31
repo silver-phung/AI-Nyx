@@ -2,11 +2,23 @@
 
 !include "${__FILEDIR__}\orca-process-check.nsh"
 
+; customInit runs after the install folder is chosen and before any old uninstaller is called.
+; A side-by-side product must never install into, or "upgrade" away, a folder that holds Orca.
+!macro customInit
+  !if "${PRODUCT_FILENAME}" != "Orca"
+    ${if} ${FileExists} "$INSTDIR\Orca.exe"
+      MessageBox MB_OK|MB_ICONSTOP "${PRODUCT_NAME} Setup stopped: $INSTDIR contains Orca, which must not be changed." /SD IDOK
+      Quit
+    ${endIf}
+  !endif
+!macroend
+
 ; #10138/#23225: electron-builder’s APP_ASSOCIATE overwrites the extension’s default without backup,
 ; and APP_UNASSOCIATE never restores it. Register only additive ProgID/OpenWithProgids/SupportedTypes
 ; entries; never write the extension’s default handler. Sync extensions with isOsOpenedDocumentName().
-!define MARKDOWN_PROGID "Orca.Markdown"
-!define TABULAR_PROGID "Orca.Tabular"
+; Product-scoped so a side-by-side product (e.g. AI-Nyx) never rewrites or deletes Orca's ProgIDs.
+!define MARKDOWN_PROGID "${PRODUCT_FILENAME}.Markdown"
+!define TABULAR_PROGID "${PRODUCT_FILENAME}.Tabular"
 
 !macro ORCA_REGISTER_DOCUMENT_OPEN_WITH EXT PROGID
   WriteRegNone SHELL_CONTEXT "Software\Classes\${EXT}\OpenWithProgids" "${PROGID}"
@@ -57,8 +69,11 @@
     ${endIf}
     nsExec::Exec 'taskkill /F /IM "${APP_EXECUTABLE_FILENAME}" $2'
     Pop $0
-    nsExec::Exec 'taskkill /F /IM "orca-terminal-daemon.exe" $2'
-    Pop $0
+    ; The legacy host image name belongs to Orca; other products must not kill Orca's terminals.
+    !if "${PRODUCT_FILENAME}" == "Orca"
+      nsExec::Exec 'taskkill /F /IM "orca-terminal-daemon.exe" $2'
+      Pop $0
+    !endif
     ; WSL hosts: the detached wsl.exe holders outlive the app and keep their distros running. Orca
     ; ends only the holders its profile recorded, each checked by pid, start time and command line.
     ; Only a userData that has a holder folder launches it: everyone who never ran a WSL host sees
@@ -94,8 +109,8 @@
     Pop $0
     ; Give the OS a moment to release the image lock before removing the tree.
     Sleep 500
-    RMDir /r "$LOCALAPPDATA\Orca\daemon-host"
-    RMDir /r "$LOCALAPPDATA\Orca\daemon-host-profiles"
+    RMDir /r "$LOCALAPPDATA\${PRODUCT_FILENAME}\daemon-host"
+    RMDir /r "$LOCALAPPDATA\${PRODUCT_FILENAME}\daemon-host-profiles"
   ${endIf}
   ; customInstall rewrites associations on every update, so remove them during uninstallOldVersion too.
   DeleteRegKey SHELL_CONTEXT "Software\Classes\${MARKDOWN_PROGID}"
